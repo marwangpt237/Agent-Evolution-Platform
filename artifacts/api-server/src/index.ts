@@ -3,6 +3,7 @@ import { logger } from "./lib/logger";
 import { db, providersTable } from "@workspace/db";
 import { eq } from "drizzle-orm";
 import { testProviderHealth, type ProviderType } from "./lib/ai";
+import { TaskQueue } from "./lib/queue";
 
 const port = Number(process.env.PORT || "5000");
 
@@ -48,4 +49,7 @@ app.listen(port, (err) => {
 
   // Run health checks in background after server is ready
   void runStartupHealthChecks();
+  
+  // Start the autonomous task processor
+  TaskQueue.startProcessor();
 });

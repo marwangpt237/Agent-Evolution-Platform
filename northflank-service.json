@@ -9,13 +9,14 @@
   },
   "vcsData": {
     "projectUrl": "https://github.com/marwangpt237/Agent-Evolution-Platform",
-    "branch": "main"
+    "projectType": "github",
+    "projectBranch": "main"
   },
   "buildSettings": {
     "buildType": "dockerfile",
     "dockerfile": {
-      "dockerfilePath": "Dockerfile",
-      "dockerContextPath": "."
+      "dockerFilePath": "/Dockerfile",
+      "dockerWorkDir": "/"
     }
   },
   "ports": [

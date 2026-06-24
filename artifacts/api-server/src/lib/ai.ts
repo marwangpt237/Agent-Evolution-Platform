@@ -22,8 +22,8 @@ export interface CompletionResult {
   tokensUsed: number;
 }
 
-const GROQ_DEFAULT_MODEL = "openai/gpt-oss-120b";
-const OPENROUTER_DEFAULT_MODEL = "openai/gpt-4o-mini";
+const GROQ_DEFAULT_MODEL = "llama-3.3-70b-versatile"; // High quality free model on Groq
+const OPENROUTER_DEFAULT_MODEL = "google/gemini-2.0-flash-001"; // Fast & capable free model
 const GEMINI_DEFAULT_MODEL = "gemini-2.0-flash";
 
 // Gemini uses an OpenAI-compatible endpoint
@@ -115,10 +115,28 @@ export async function chatCompletion(
 
     return await callGroq(messages, opts);
   } catch (err) {
-    logger.warn({ err, providerType }, "Primary provider failed, falling back to Groq");
-    if (providerType !== "groq") {
-      return await callGroq(messages, { ...opts, model: undefined });
+    logger.warn({ err, providerType }, "Primary provider failed, attempting fallback chain");
+    
+    // Fallback chain: Primary -> Gemini (if not primary) -> Groq (if not primary)
+    if (providerType !== "gemini" && process.env.GEMINI_API_KEY) {
+      try {
+        return await callOpenAICompatible(
+          GEMINI_BASE_URL, process.env.GEMINI_API_KEY,
+          GEMINI_DEFAULT_MODEL, messages, opts
+        );
+      } catch (geminiErr) {
+        logger.warn({ err: geminiErr }, "Gemini fallback failed");
+      }
     }
+
+    if (providerType !== "groq" && process.env.GROQ_API_KEY) {
+      try {
+        return await callGroq(messages, { ...opts, model: undefined });
+      } catch (groqErr) {
+        logger.warn({ err: groqErr }, "Groq fallback failed");
+      }
+    }
+    
     throw err;
   }
 }

@@ -1,0 +1,15 @@
+{
+  "$schema": "https://railway.app/railway.schema.json",
+  "build": {
+    "builder": "DOCKERFILE",
+    "dockerfilePath": "Dockerfile"
+  },
+  "deploy": {
+    "numReplicas": 1,
+    "sleepApplication": false,
+    "restartPolicyType": "ON_FAILURE",
+    "healthCheckPath": "/api/healthz",
+    "healthCheckTimeout": 120,
+    "startCommand": "node --enable-source-maps artifacts/api-server/dist/index.mjs"
+  }
+}

@@ -9,6 +9,7 @@
   },
   "devDependencies": {
     "@types/node": "catalog:",
+    "canvas": "^3.2.3",
     "tsx": "catalog:"
   }
 }
