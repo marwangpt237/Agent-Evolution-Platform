@@ -31,4 +31,21 @@ app.use(express.urlencoded({ extended: true }));
 
 app.use("/api", router);
 
+if (process.env.NODE_ENV === "production") {
+  const path = await import("node:path");
+  const { fileURLToPath } = await import("node:url");
+  const __dirname = path.dirname(fileURLToPath(import.meta.url));
+  
+  // The frontend is built into artifacts/algdevs-ai/dist/public
+  // In the Docker image, we'll place it relative to the server dist
+  const publicPath = path.resolve(__dirname, "../../algdevs-ai/dist/public");
+  
+  app.use(express.static(publicPath));
+  
+  app.get("*", (req, res) => {
+    if (req.path.startsWith("/api")) return;
+    res.sendFile(path.join(publicPath, "index.html"));
+  });
+}
+
 export default app;

@@ -1,0 +1,29 @@
+{
+  "name": "agent-evolution-platform",
+  "description": "Autonomous agent platform with Chat, Plan, and Agent modes",
+  "billing": {
+    "deploymentPlan": "nf-compute-10"
+  },
+  "deployment": {
+    "instances": 1
+  },
+  "vcsData": {
+    "projectUrl": "https://github.com/marwangpt237/Agent-Evolution-Platform",
+    "branch": "main"
+  },
+  "buildSettings": {
+    "buildType": "dockerfile",
+    "dockerfile": {
+      "dockerfilePath": "Dockerfile",
+      "dockerContextPath": "."
+    }
+  },
+  "ports": [
+    {
+      "name": "http",
+      "internalPort": 8080,
+      "public": true,
+      "protocol": "HTTP"
+    }
+  ]
+}
