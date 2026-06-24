@@ -5,7 +5,7 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import NotFound from "@/pages/not-found";
 
 import Layout from "@/components/layout";
-import AgentWorkspace from "@/pages/agent-workspace";
+import AgentDashboard from "@/pages/agent-dashboard";
 import Dashboard from "@/pages/dashboard";
 import Chat from "@/pages/chat";
 import Plans from "@/pages/plans";
@@ -29,10 +29,10 @@ function Router() {
   return (
     <Switch>
       {/* Agent Workspace - Main page (mobile-friendly) */}
-      <Route path="/" component={AgentWorkspace} />
+      <Route path="/" component={AgentDashboard} />
       
       {/* Task-specific workspace */}
-      <Route path="/workspace/:taskId" component={AgentWorkspace} />
+      <Route path="/workspace/:taskId" component={AgentDashboard} />
       
       {/* Dashboard */}
       <Route path="/dashboard" component={Dashboard} />
