@@ -1,0 +1,16 @@
+services:
+  - type: web
+    name: agent-evolution-platform
+    env: docker
+    plan: free
+    region: ohio
+    dockerfilePath: Dockerfile
+    dockerContext: .
+    envVars:
+      - key: DATABASE_URL
+        value: postgresql://neondb_owner:npg_aVvxph8WRl5Y@ep-proud-lab-a66fz2qx-pooler.us-west-2.aws.neon.tech/neondb?sslmode=require
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: 8080
+    healthCheckPath: /api/healthz
