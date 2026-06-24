@@ -10,7 +10,10 @@ import providersRouter from "./providers";
 import agentsRouter from "./agents";
 import sandboxRouter from "./sandbox";
 import eventsRouter from "./events";
+import eventsStreamRouter from "./events-stream";
 import dashboardRouter from "./dashboard";
+import agentExecuteRouter from "./agent-execute";
+import sandboxFilesRouter from "./sandbox-files";
 
 const router: IRouter = Router();
 
@@ -24,7 +27,10 @@ router.use(workspacesRouter);
 router.use(providersRouter);
 router.use(agentsRouter);
 router.use(sandboxRouter);
+router.use(sandboxFilesRouter);
 router.use(eventsRouter);
+router.use(eventsStreamRouter);
 router.use(dashboardRouter);
+router.use(agentExecuteRouter);
 
 export default router;

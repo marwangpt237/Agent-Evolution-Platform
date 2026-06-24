@@ -1,6 +1,8 @@
 import { db, tasksTable } from "@workspace/db";
-import { eq, and, or, sql } from "drizzle-orm";
+import { eq, sql } from "drizzle-orm";
 import { logger } from "./logger";
+import { executeAgentTask } from "./agent/executor";
+import { broadcastEvent } from "./events-stream";
 
 /**
  * Task Queue Manager using PostgreSQL SKIP LOCKED
@@ -111,13 +113,26 @@ export class TaskQueue {
   }
 
   /**
-   * Placeholder for actual agent execution logic
+   * Execute the task using the real agent loop (LLM + tools).
    */
   private static async executeTaskLogic(task: any): Promise<string> {
-    // This is where we would dispatch to Supervisor, Planner, etc.
-    // For MVP/Manus-style, we'll add a small delay to simulate "thinking"
-    await new Promise(resolve => setTimeout(resolve, 2000));
-    
-    return `Executed task "${task.title}" using ${task.agent_type} agent. Output generated at ${new Date().toISOString()}`;
+    await broadcastEvent({
+      eventType: "task.queued",
+      entityType: "task",
+      entityId: task.id,
+      description: `Task "${task.title}" picked up by queue`,
+    });
+
+    const result = await executeAgentTask({
+      taskId: task.id,
+      planId: task.plan_id ?? null,
+      sessionId: task.session_id ?? null,
+      workspaceId: task.workspace_id ?? null,
+      agentType: task.agent_type,
+      taskTitle: task.title,
+      taskDescription: task.description,
+    });
+
+    return result.output;
   }
 }

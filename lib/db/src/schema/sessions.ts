@@ -8,6 +8,7 @@ export const sessionsTable = pgTable("sessions", {
   mode: text("mode").notNull().default("chat"),
   providerId: integer("provider_id"),
   model: text("model"),
+  sandboxId: text("sandbox_id"),
   messageCount: integer("message_count").notNull().default(0),
   pinned: boolean("pinned").notNull().default(false),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
