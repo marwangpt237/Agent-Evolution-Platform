@@ -26,7 +26,7 @@ async function callGroq(
   messages: ChatMessage[],
   opts: CompletionOptions
 ): Promise<CompletionResult> {
-  const model = opts.model ?? "llama-3.3-70b-versatile";
+  const model = opts.model ?? "openai/gpt-oss-120b";
   const response = await groq.chat.completions.create({
     model,
     messages,
