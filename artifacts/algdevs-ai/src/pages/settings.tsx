@@ -13,7 +13,7 @@ type ProviderType = typeof providerTypes[number];
 const providerDesc: Record<ProviderType, string> = {
   groq: "Free tier · gpt-oss-120b, Llama 3.3 70B and more",
   gemini: "Requires paid Replit plan — routes through Groq as fallback",
-  openrouter: "Requires paid Replit plan — routes through Groq as fallback",
+  openrouter: "Free models available · gpt-4o-mini, Llama, Mistral and more",
   openai: "Requires paid Replit plan — routes through Groq as fallback",
   anthropic: "Requires paid Replit plan — routes through Groq as fallback",
   custom: "Custom OpenAI-compatible endpoint",
