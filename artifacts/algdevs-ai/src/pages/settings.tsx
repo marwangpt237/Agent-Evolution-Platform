@@ -11,11 +11,11 @@ const providerTypes = ["groq", "gemini", "openrouter", "openai", "anthropic", "c
 type ProviderType = typeof providerTypes[number];
 
 const providerDesc: Record<ProviderType, string> = {
-  groq: "Free tier · Llama 3.3 70B via Groq API",
-  gemini: "Free tier · Gemini via Replit AI proxy",
-  openrouter: "Free tier · Multiple models via Replit proxy",
-  openai: "Via Replit AI proxy",
-  anthropic: "Via Replit AI proxy",
+  groq: "Free tier · gpt-oss-120b, Llama 3.3 70B and more",
+  gemini: "Requires paid Replit plan — routes through Groq as fallback",
+  openrouter: "Requires paid Replit plan — routes through Groq as fallback",
+  openai: "Requires paid Replit plan — routes through Groq as fallback",
+  anthropic: "Requires paid Replit plan — routes through Groq as fallback",
   custom: "Custom OpenAI-compatible endpoint",
 };
 
@@ -96,7 +96,7 @@ export default function SettingsPage() {
                 className="bg-background border-border"
               />
               <div className="text-xs text-muted-foreground bg-primary/5 border border-primary/20 rounded p-2">
-                Groq, Gemini, OpenRouter, OpenAI, and Anthropic work without an API key via Replit&apos;s built-in AI proxy. No credit card needed.
+                Only Groq works on the free tier. All other providers route through Groq as a fallback automatically.
               </div>
               <div className="flex gap-2 justify-end">
                 <Button variant="outline" size="sm" onClick={() => setShowForm(false)}>Cancel</Button>

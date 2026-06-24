@@ -22,11 +22,20 @@ export interface CompletionResult {
   tokensUsed: number;
 }
 
+const GROQ_DEFAULT_MODEL = "openai/gpt-oss-120b";
+
+const GROQ_MODEL_ALIASES: Record<string, string> = {
+  gemini: GROQ_DEFAULT_MODEL,
+  openrouter: GROQ_DEFAULT_MODEL,
+  openai: GROQ_DEFAULT_MODEL,
+  anthropic: GROQ_DEFAULT_MODEL,
+};
+
 async function callGroq(
   messages: ChatMessage[],
   opts: CompletionOptions
 ): Promise<CompletionResult> {
-  const model = opts.model ?? "openai/gpt-oss-120b";
+  const model = opts.model ?? GROQ_DEFAULT_MODEL;
   const response = await groq.chat.completions.create({
     model,
     messages,
@@ -41,84 +50,37 @@ async function callGroq(
   };
 }
 
-async function callReplitProxy(
-  providerType: ProviderType,
-  messages: ChatMessage[],
-  opts: CompletionOptions
-): Promise<CompletionResult> {
-  const modelMap: Record<string, string> = {
-    gemini: "gemini-2.0-flash",
-    openrouter: "openai/gpt-4o-mini",
-    openai: "gpt-4o-mini",
-    anthropic: "claude-3-5-haiku-20241022",
-  };
-
-  const model = opts.model ?? modelMap[providerType] ?? "gemini-2.0-flash";
-
-  const response = await fetch("https://api.replit.com/v1/chat/completions", {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      Authorization: `Bearer ${process.env.REPLIT_AI_IDENTITY_TOKEN ?? ""}`,
-    },
-    body: JSON.stringify({
-      model,
-      messages,
-      max_tokens: opts.maxTokens ?? 4096,
-      temperature: opts.temperature ?? 0.7,
-    }),
-  });
-
-  if (!response.ok) {
-    const text = await response.text();
-    throw new Error(`Replit AI proxy error ${response.status}: ${text}`);
-  }
-
-  const data = (await response.json()) as {
-    choices: Array<{ message: { content: string } }>;
-    usage?: { total_tokens: number };
-    model: string;
-  };
-
-  return {
-    content: data.choices[0]?.message?.content ?? "",
-    model: data.model ?? model,
-    tokensUsed: data.usage?.total_tokens ?? 0,
-  };
-}
-
 export async function chatCompletion(
   messages: ChatMessage[],
   providerType: ProviderType = "groq",
   opts: CompletionOptions = {}
 ): Promise<CompletionResult> {
-  try {
-    if (providerType === "groq") {
-      return await callGroq(messages, opts);
-    }
-    return await callReplitProxy(providerType, messages, opts);
-  } catch (err) {
-    logger.warn({ err, providerType }, "Primary provider failed, falling back to Groq");
-    if (providerType !== "groq") {
-      return await callGroq(messages, opts);
-    }
-    throw err;
-  }
+  // All providers route through Groq (free tier — no other provider configured)
+  const model = opts.model ?? GROQ_MODEL_ALIASES[providerType] ?? GROQ_DEFAULT_MODEL;
+  return callGroq(messages, { ...opts, model });
 }
 
 export async function testProviderHealth(
   providerType: ProviderType,
   model?: string
 ): Promise<{ success: boolean; latencyMs: number; model: string | null; error: string | null }> {
+  if (providerType !== "groq") {
+    return {
+      success: false,
+      latencyMs: 0,
+      model: model ?? null,
+      error: "Only Groq is configured. Other providers require a paid Replit plan.",
+    };
+  }
   const start = Date.now();
   try {
-    const result = await chatCompletion(
+    const result = await callGroq(
       [{ role: "user", content: "Reply with just: OK" }],
-      providerType,
       { model, maxTokens: 10 }
     );
     return { success: true, latencyMs: Date.now() - start, model: result.model, error: null };
   } catch (err) {
+    logger.error({ err }, "Groq health check failed");
     return {
       success: false,
       latencyMs: Date.now() - start,
