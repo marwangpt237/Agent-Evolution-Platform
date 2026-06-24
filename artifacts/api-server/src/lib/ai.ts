@@ -24,12 +24,13 @@ export interface CompletionResult {
 
 const GROQ_DEFAULT_MODEL = "openai/gpt-oss-120b";
 const OPENROUTER_DEFAULT_MODEL = "openai/gpt-4o-mini";
+const GEMINI_DEFAULT_MODEL = "gemini-2.0-flash";
+
+// Gemini uses an OpenAI-compatible endpoint
+const GEMINI_BASE_URL = "https://generativelanguage.googleapis.com/v1beta/openai";
 const OPENROUTER_BASE_URL = "https://openrouter.ai/api/v1";
 
-async function callGroq(
-  messages: ChatMessage[],
-  opts: CompletionOptions
-): Promise<CompletionResult> {
+async function callGroq(messages: ChatMessage[], opts: CompletionOptions): Promise<CompletionResult> {
   const model = opts.model ?? GROQ_DEFAULT_MODEL;
   const response = await groq.chat.completions.create({
     model,
@@ -37,30 +38,27 @@ async function callGroq(
     max_tokens: opts.maxTokens ?? 4096,
     temperature: opts.temperature ?? 0.7,
   });
-  const choice = response.choices[0];
   return {
-    content: choice.message.content ?? "",
+    content: response.choices[0].message.content ?? "",
     model,
     tokensUsed: response.usage?.total_tokens ?? 0,
   };
 }
 
-async function callOpenRouter(
+async function callOpenAICompatible(
+  baseUrl: string,
+  apiKey: string,
+  model: string,
   messages: ChatMessage[],
-  opts: CompletionOptions
+  opts: CompletionOptions,
+  extraHeaders: Record<string, string> = {}
 ): Promise<CompletionResult> {
-  const apiKey = process.env.OPENROUTER_API_KEY;
-  if (!apiKey) throw new Error("OPENROUTER_API_KEY not configured");
-
-  const model = opts.model ?? OPENROUTER_DEFAULT_MODEL;
-
-  const response = await fetch(`${OPENROUTER_BASE_URL}/chat/completions`, {
+  const response = await fetch(`${baseUrl}/chat/completions`, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
       "Authorization": `Bearer ${apiKey}`,
-      "HTTP-Referer": "https://algdevs-ai.replit.app",
-      "X-Title": "AlgDevs-AI",
+      ...extraHeaders,
     },
     body: JSON.stringify({
       model,
@@ -72,7 +70,7 @@ async function callOpenRouter(
 
   if (!response.ok) {
     const text = await response.text();
-    throw new Error(`OpenRouter error ${response.status}: ${text}`);
+    throw new Error(`API error ${response.status}: ${text.slice(0, 300)}`);
   }
 
   const data = (await response.json()) as {
@@ -94,14 +92,32 @@ export async function chatCompletion(
   opts: CompletionOptions = {}
 ): Promise<CompletionResult> {
   try {
-    if (providerType === "openrouter") {
-      return await callOpenRouter(messages, opts);
+    if (providerType === "gemini") {
+      const apiKey = process.env.GEMINI_API_KEY;
+      if (!apiKey) throw new Error("GEMINI_API_KEY not configured");
+      return await callOpenAICompatible(
+        GEMINI_BASE_URL, apiKey,
+        opts.model ?? GEMINI_DEFAULT_MODEL,
+        messages, opts
+      );
     }
+
+    if (providerType === "openrouter") {
+      const apiKey = process.env.OPENROUTER_API_KEY;
+      if (!apiKey) throw new Error("OPENROUTER_API_KEY not configured");
+      return await callOpenAICompatible(
+        OPENROUTER_BASE_URL, apiKey,
+        opts.model ?? OPENROUTER_DEFAULT_MODEL,
+        messages, opts,
+        { "HTTP-Referer": "https://algdevs-ai.replit.app", "X-Title": "AlgDevs-AI" }
+      );
+    }
+
     return await callGroq(messages, opts);
   } catch (err) {
     logger.warn({ err, providerType }, "Primary provider failed, falling back to Groq");
     if (providerType !== "groq") {
-      return await callGroq(messages, { ...opts, model: opts.model ?? GROQ_DEFAULT_MODEL });
+      return await callGroq(messages, { ...opts, model: undefined });
     }
     throw err;
   }

@@ -18,11 +18,11 @@ const statusColor: Record<string, string> = {
 };
 
 const agentDesc: Record<AgentType, string> = {
-  supervisor: "Orchestrates multi-agent pipelines",
-  planner: "Decomposes tasks into executable steps",
-  researcher: "Gathers information and context",
-  coder: "Writes and executes code",
-  reviewer: "Reviews and validates agent outputs",
+  supervisor: "Orchestrates pipelines",
+  planner: "Decomposes tasks",
+  researcher: "Gathers context",
+  coder: "Writes & runs code",
+  reviewer: "Validates outputs",
 };
 
 export default function Agents() {
@@ -37,78 +37,64 @@ export default function Agents() {
   };
 
   return (
-    <div className="p-8 max-w-5xl mx-auto space-y-8 font-mono">
-      <div className="flex items-center justify-between border-b border-border pb-4">
+    <div className="p-4 md:p-8 max-w-5xl mx-auto space-y-6 font-mono">
+      <div className="flex items-start justify-between border-b border-border pb-4">
         <div>
-          <h1 className="text-3xl font-bold tracking-tighter">Agent Fleet</h1>
-          <p className="text-muted-foreground mt-1 text-sm">Spawn and manage specialized AI agents.</p>
+          <h1 className="text-2xl md:text-3xl font-bold tracking-tighter">Agent Fleet</h1>
+          <p className="text-muted-foreground mt-1 text-xs md:text-sm">Spawn and manage specialized AI agents.</p>
         </div>
-        <Bot className="w-8 h-8 text-primary opacity-50" />
+        <Bot className="w-7 h-7 text-primary opacity-50 shrink-0 ml-4" />
       </div>
 
-      {/* Spawn panel */}
       <div>
-        <h2 className="text-sm text-muted-foreground uppercase tracking-widest mb-3">Spawn Agent</h2>
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+        <h2 className="text-xs text-muted-foreground uppercase tracking-widest mb-3">Spawn Agent</h2>
+        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-2">
           {agentTypes.map((type) => (
             <Card
               key={type}
-              className="bg-card border-border shadow-none cursor-pointer hover:border-primary/50 transition-colors"
+              className="bg-card border-border shadow-none cursor-pointer hover:border-primary/50 transition-colors active:scale-95"
               onClick={() => handleSpawn(type)}
             >
-              <CardContent className="p-4 flex items-center justify-between">
-                <div>
-                  <div className="font-semibold text-sm capitalize">{type}</div>
-                  <div className="text-xs text-muted-foreground mt-0.5">{agentDesc[type]}</div>
-                </div>
-                <Button
-                  size="icon" variant="ghost"
-                  disabled={spawning === type || spawnAgent.isPending}
-                >
-                  <Plus className={cn("w-4 h-4 text-primary", spawning === type && "animate-pulse")} />
-                </Button>
+              <CardContent className="p-3 flex flex-col items-center text-center gap-1">
+                <Plus className={cn("w-4 h-4 text-primary", spawning === type && "animate-pulse")} />
+                <div className="font-semibold text-xs capitalize">{type}</div>
+                <div className="text-xs text-muted-foreground leading-tight">{agentDesc[type]}</div>
               </CardContent>
             </Card>
           ))}
         </div>
       </div>
 
-      {/* Running agents */}
       <div>
-        <h2 className="text-sm text-muted-foreground uppercase tracking-widest mb-3">Active Instances</h2>
+        <h2 className="text-xs text-muted-foreground uppercase tracking-widest mb-3">Active Instances</h2>
         {isLoading ? (
-          <div className="text-primary animate-pulse">Loading agents...</div>
+          <div className="text-primary animate-pulse text-sm">Loading agents...</div>
         ) : !agents?.length ? (
           <div className="text-center py-10 text-muted-foreground">
             <Cpu className="w-10 h-10 mx-auto mb-3 opacity-20" />
-            <p>No agent instances. Spawn one above.</p>
+            <p className="text-sm">No instances. Spawn one above.</p>
           </div>
         ) : (
           <div className="space-y-2">
             {agents.map((agent) => (
               <Card key={agent.id} className="bg-card border-border shadow-none">
-                <CardContent className="py-3 px-4 flex items-center justify-between">
-                  <div className="flex items-center gap-3">
-                    <Badge className={cn("text-xs border", statusColor[agent.status] ?? "")}>
+                <CardContent className="py-2.5 px-3 flex items-center justify-between gap-2">
+                  <div className="flex items-center gap-2 min-w-0">
+                    <Badge className={cn("text-xs border shrink-0", statusColor[agent.status] ?? "")}>
                       {agent.status}
                     </Badge>
-                    <span className="text-sm font-medium capitalize">{agent.agentType}</span>
-                    {agent.model && (
-                      <span className="text-xs text-muted-foreground">→ {agent.model}</span>
-                    )}
-                    <span className="text-xs text-muted-foreground">
-                      {(agent.tokensUsed ?? 0).toLocaleString()} tokens
+                    <span className="text-sm font-medium capitalize truncate">{agent.agentType}</span>
+                    <span className="text-xs text-muted-foreground hidden sm:inline">
+                      {(agent.tokensUsed ?? 0).toLocaleString()} tok
                     </span>
                   </div>
-                  <div className="flex items-center gap-3">
-                    <span className="text-xs text-muted-foreground">
+                  <div className="flex items-center gap-2 shrink-0">
+                    <span className="text-xs text-muted-foreground hidden sm:inline">
                       {format(new Date(agent.createdAt), "HH:mm")}
                     </span>
                     {agent.status !== "stopped" && (
-                      <Button
-                        variant="ghost" size="icon"
-                        onClick={() => stopAgent.mutate({ id: agent.id })}
-                      >
+                      <Button variant="ghost" size="icon" className="h-7 w-7"
+                        onClick={() => stopAgent.mutate({ id: agent.id })}>
                         <StopCircle className="w-3.5 h-3.5 text-destructive" />
                       </Button>
                     )}

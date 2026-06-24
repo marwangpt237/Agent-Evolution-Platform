@@ -29,13 +29,13 @@ export default function Plans() {
   };
 
   return (
-    <div className="p-8 max-w-5xl mx-auto space-y-8 font-mono">
-      <div className="flex items-center justify-between border-b border-border pb-4">
+    <div className="p-4 md:p-8 max-w-5xl mx-auto space-y-6 font-mono">
+      <div className="flex items-start justify-between border-b border-border pb-4">
         <div>
-          <h1 className="text-3xl font-bold tracking-tighter">Execution Plans</h1>
-          <p className="text-muted-foreground mt-1 text-sm">Define multi-step agentic workflows.</p>
+          <h1 className="text-2xl md:text-3xl font-bold tracking-tighter">Execution Plans</h1>
+          <p className="text-muted-foreground mt-1 text-xs md:text-sm">Multi-step agentic workflows.</p>
         </div>
-        <Map className="w-8 h-8 text-primary opacity-50" />
+        <Map className="w-7 h-7 text-primary opacity-50 shrink-0 ml-4" />
       </div>
 
       <div className="flex gap-2">
@@ -44,71 +44,60 @@ export default function Plans() {
           onChange={(e) => setNewTitle(e.target.value)}
           onKeyDown={(e) => e.key === "Enter" && handleCreate()}
           placeholder="New plan title..."
-          className="bg-card border-border font-mono"
+          className="bg-card border-border font-mono text-sm"
         />
-        <Button onClick={handleCreate} disabled={createPlan.isPending || !newTitle.trim()}>
-          <Plus className="w-4 h-4 mr-2" /> Create
+        <Button onClick={handleCreate} disabled={createPlan.isPending || !newTitle.trim()} size="sm" className="shrink-0">
+          <Plus className="w-4 h-4 md:mr-2" />
+          <span className="hidden md:inline">Create</span>
         </Button>
       </div>
 
       {isLoading ? (
-        <div className="text-primary animate-pulse">Loading plans...</div>
+        <div className="text-primary animate-pulse text-sm">Loading plans...</div>
       ) : !plans?.length ? (
-        <div className="text-center py-16 text-muted-foreground">
-          <Map className="w-12 h-12 mx-auto mb-4 opacity-20" />
-          <p>No plans yet. Create one to get started.</p>
+        <div className="text-center py-12 text-muted-foreground">
+          <Map className="w-10 h-10 mx-auto mb-3 opacity-20" />
+          <p className="text-sm">No plans yet. Create one above.</p>
         </div>
       ) : (
-        <div className="space-y-3">
+        <div className="space-y-2">
           {plans.map((plan) => (
             <Card key={plan.id} className="bg-card border-border shadow-none">
-              <CardHeader className="pb-2">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-3">
-                    <CardTitle className="text-base">{plan.title}</CardTitle>
-                    <Badge className={cn("text-xs border", statusColor[plan.status] ?? statusColor.draft)}>
+              <CardHeader className="pb-2 pt-3 px-3 md:px-4">
+                <div className="flex items-center justify-between gap-2">
+                  <div className="flex items-center gap-2 min-w-0">
+                    <Badge className={cn("text-xs border shrink-0", statusColor[plan.status] ?? statusColor.draft)}>
                       {plan.status}
                     </Badge>
+                    <CardTitle className="text-sm truncate">{plan.title}</CardTitle>
                   </div>
-                  <div className="flex items-center gap-2">
-                    <Button
-                      variant="ghost" size="icon"
+                  <div className="flex items-center gap-1 shrink-0">
+                    <Button variant="ghost" size="icon" className="h-7 w-7"
                       onClick={() => executePlan.mutate({ id: plan.id })}
-                      disabled={plan.status === "executing"}
-                      title="Execute plan"
-                    >
-                      <Play className="w-4 h-4 text-primary" />
+                      disabled={plan.status === "executing"}>
+                      <Play className="w-3.5 h-3.5 text-primary" />
                     </Button>
-                    <Button
-                      variant="ghost" size="icon"
-                      onClick={() => setExpanded(expanded === plan.id ? null : plan.id)}
-                    >
-                      {expanded === plan.id ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+                    <Button variant="ghost" size="icon" className="h-7 w-7"
+                      onClick={() => setExpanded(expanded === plan.id ? null : plan.id)}>
+                      {expanded === plan.id ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
                     </Button>
-                    <Button
-                      variant="ghost" size="icon"
-                      onClick={() => deletePlan.mutate({ id: plan.id })}
-                    >
-                      <Trash2 className="w-4 h-4 text-destructive" />
+                    <Button variant="ghost" size="icon" className="h-7 w-7"
+                      onClick={() => deletePlan.mutate({ id: plan.id })}>
+                      <Trash2 className="w-3.5 h-3.5 text-destructive" />
                     </Button>
                   </div>
                 </div>
-                <div className="flex gap-4 text-xs text-muted-foreground pt-1">
+                <div className="flex gap-3 text-xs text-muted-foreground mt-1">
                   <span>{plan.completedSteps}/{plan.totalSteps} steps</span>
                   <span>{format(new Date(plan.createdAt), "MMM d, HH:mm")}</span>
                 </div>
               </CardHeader>
               {expanded === plan.id && (
-                <CardContent>
-                  <div className="h-px bg-border mb-3" />
-                  {plan.totalSteps === 0 ? (
-                    <p className="text-sm text-muted-foreground">No steps defined.</p>
-                  ) : (
-                    <p className="text-sm text-muted-foreground">Steps visible on plan detail view.</p>
-                  )}
-                  {plan.description && (
-                    <p className="text-sm text-foreground mt-2">{plan.description}</p>
-                  )}
+                <CardContent className="px-3 md:px-4 pb-3">
+                  <div className="h-px bg-border mb-2" />
+                  {plan.description
+                    ? <p className="text-sm text-foreground">{plan.description}</p>
+                    : <p className="text-sm text-muted-foreground">No description.</p>}
                 </CardContent>
               )}
             </Card>
