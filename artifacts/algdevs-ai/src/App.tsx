@@ -4,23 +4,38 @@ import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import NotFound from "@/pages/not-found";
 
-const queryClient = new QueryClient();
+import Layout from "./components/layout";
+import Dashboard from "./pages/dashboard";
+import Chat from "./pages/chat";
+import Plans from "./pages/plans";
+import Tasks from "./pages/tasks";
+import Artifacts from "./pages/artifacts";
+import Workspaces from "./pages/workspaces";
+import Agents from "./pages/agents";
+import Sandbox from "./pages/sandbox";
+import Settings from "./pages/settings";
 
-function Home() {
-  return (
-    <div className="min-h-screen w-full flex items-center justify-center bg-gray-50">
-      <div className="text-center">
-        <h1 className="text-2xl font-bold text-gray-900">Replit Agent is building...</h1>
-        <p className="mt-2 text-sm text-gray-600">Your app will appear here once it's ready.</p>
-      </div>
-    </div>
-  );
-}
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      retry: 1,
+      staleTime: 10_000,
+    },
+  },
+});
 
 function Router() {
   return (
     <Switch>
-      <Route path="/" component={Home} />
+      <Route path="/" component={Dashboard} />
+      <Route path="/chat" component={Chat} />
+      <Route path="/plans" component={Plans} />
+      <Route path="/tasks" component={Tasks} />
+      <Route path="/artifacts" component={Artifacts} />
+      <Route path="/workspaces" component={Workspaces} />
+      <Route path="/agents" component={Agents} />
+      <Route path="/sandbox" component={Sandbox} />
+      <Route path="/settings" component={Settings} />
       <Route component={NotFound} />
     </Switch>
   );
@@ -31,7 +46,9 @@ function App() {
     <QueryClientProvider client={queryClient}>
       <TooltipProvider>
         <WouterRouter base={import.meta.env.BASE_URL.replace(/\/$/, "")}>
-          <Router />
+          <Layout>
+            <Router />
+          </Layout>
         </WouterRouter>
         <Toaster />
       </TooltipProvider>

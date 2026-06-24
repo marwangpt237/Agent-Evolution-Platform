@@ -1,22 +1,43 @@
 openapi: 3.1.0
 info:
-  # Do not change the title, if the title changes, the import paths will be broken
   title: Api
   version: 0.1.0
-  description: API specification
+  description: AlgDevs-AI Agent Platform API
 servers:
   - url: /api
     description: Base API path
 tags:
   - name: health
     description: Health operations
+  - name: sessions
+    description: Chat sessions
+  - name: messages
+    description: Chat messages
+  - name: plans
+    description: Execution plans
+  - name: tasks
+    description: Task queue
+  - name: artifacts
+    description: Generated artifacts
+  - name: workspaces
+    description: Project workspaces
+  - name: providers
+    description: AI provider management
+  - name: agents
+    description: Agent instances
+  - name: sandbox
+    description: Code execution sandbox
+  - name: events
+    description: Activity events
+  - name: dashboard
+    description: Dashboard summary
+
 paths:
   /healthz:
     get:
       operationId: healthCheck
       tags: [health]
       summary: Health check
-      description: Returns server health status
       responses:
         "200":
           description: Healthy
@@ -24,13 +45,1439 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/HealthStatus"
+
+  # ── Sessions ──────────────────────────────────────────────────────────────
+  /sessions:
+    get:
+      operationId: listSessions
+      tags: [sessions]
+      summary: List all chat sessions
+      responses:
+        "200":
+          description: List of sessions
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Session"
+    post:
+      operationId: createSession
+      tags: [sessions]
+      summary: Create a new chat session
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SessionInput"
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Session"
+
+  /sessions/{id}:
+    get:
+      operationId: getSession
+      tags: [sessions]
+      summary: Get a session by ID
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Session
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Session"
+        "404":
+          description: Not found
+    patch:
+      operationId: updateSession
+      tags: [sessions]
+      summary: Update a session
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SessionUpdate"
+      responses:
+        "200":
+          description: Updated session
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Session"
+    delete:
+      operationId: deleteSession
+      tags: [sessions]
+      summary: Delete a session
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "204":
+          description: Deleted
+
+  /sessions/{id}/export:
+    get:
+      operationId: exportSession
+      tags: [sessions]
+      summary: Export session as markdown
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Exported markdown
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SessionExport"
+
+  # ── Messages ──────────────────────────────────────────────────────────────
+  /sessions/{sessionId}/messages:
+    get:
+      operationId: listMessages
+      tags: [messages]
+      summary: List messages in a session
+      parameters:
+        - name: sessionId
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: List of messages
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Message"
+    post:
+      operationId: sendMessage
+      tags: [messages]
+      summary: Send a message and get AI response
+      parameters:
+        - name: sessionId
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/MessageInput"
+      responses:
+        "201":
+          description: AI response message
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Message"
+
+  # ── Plans ─────────────────────────────────────────────────────────────────
+  /plans:
+    get:
+      operationId: listPlans
+      tags: [plans]
+      summary: List all plans
+      responses:
+        "200":
+          description: List of plans
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Plan"
+    post:
+      operationId: createPlan
+      tags: [plans]
+      summary: Create a new plan
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PlanInput"
+      responses:
+        "201":
+          description: Created plan
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Plan"
+
+  /plans/{id}:
+    get:
+      operationId: getPlan
+      tags: [plans]
+      summary: Get a plan by ID
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Plan with steps
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PlanWithSteps"
+        "404":
+          description: Not found
+    patch:
+      operationId: updatePlan
+      tags: [plans]
+      summary: Update a plan
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PlanUpdate"
+      responses:
+        "200":
+          description: Updated plan
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Plan"
+    delete:
+      operationId: deletePlan
+      tags: [plans]
+      summary: Delete a plan
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "204":
+          description: Deleted
+
+  /plans/{id}/execute:
+    post:
+      operationId: executePlan
+      tags: [plans]
+      summary: Start executing a plan
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Plan execution started
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Plan"
+
+  /plans/{id}/steps/{stepId}:
+    patch:
+      operationId: updatePlanStep
+      tags: [plans]
+      summary: Update a plan step
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+        - name: stepId
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PlanStepUpdate"
+      responses:
+        "200":
+          description: Updated step
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PlanStep"
+
+  # ── Tasks ─────────────────────────────────────────────────────────────────
+  /tasks:
+    get:
+      operationId: listTasks
+      tags: [tasks]
+      summary: List all tasks
+      parameters:
+        - name: status
+          in: query
+          schema:
+            type: string
+            enum: [pending, queued, running, paused, completed, failed, cancelled]
+        - name: agentType
+          in: query
+          schema:
+            type: string
+      responses:
+        "200":
+          description: List of tasks
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Task"
+    post:
+      operationId: createTask
+      tags: [tasks]
+      summary: Create a new task
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/TaskInput"
+      responses:
+        "201":
+          description: Created task
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Task"
+
+  /tasks/{id}:
+    get:
+      operationId: getTask
+      tags: [tasks]
+      summary: Get a task by ID
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Task
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Task"
+        "404":
+          description: Not found
+
+  /tasks/{id}/cancel:
+    post:
+      operationId: cancelTask
+      tags: [tasks]
+      summary: Cancel a task
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Cancelled task
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Task"
+
+  /tasks/{id}/retry:
+    post:
+      operationId: retryTask
+      tags: [tasks]
+      summary: Retry a failed task
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Retried task
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Task"
+
+  /tasks/stats:
+    get:
+      operationId: getTaskStats
+      tags: [tasks]
+      summary: Get task statistics by status
+      responses:
+        "200":
+          description: Task statistics
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TaskStats"
+
+  # ── Artifacts ─────────────────────────────────────────────────────────────
+  /artifacts:
+    get:
+      operationId: listArtifacts
+      tags: [artifacts]
+      summary: List all artifacts
+      parameters:
+        - name: workspaceId
+          in: query
+          schema:
+            type: ["integer", "null"]
+        - name: artifactType
+          in: query
+          schema:
+            type: string
+      responses:
+        "200":
+          description: List of artifacts
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Artifact"
+    post:
+      operationId: createArtifactRecord
+      tags: [artifacts]
+      summary: Create an artifact record
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ArtifactInput"
+      responses:
+        "201":
+          description: Created artifact
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Artifact"
+
+  /artifacts/{id}:
+    get:
+      operationId: getArtifact
+      tags: [artifacts]
+      summary: Get an artifact by ID
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Artifact
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Artifact"
+        "404":
+          description: Not found
+    delete:
+      operationId: deleteArtifact
+      tags: [artifacts]
+      summary: Delete an artifact
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "204":
+          description: Deleted
+
+  # ── Workspaces ────────────────────────────────────────────────────────────
+  /workspaces:
+    get:
+      operationId: listWorkspaces
+      tags: [workspaces]
+      summary: List all workspaces
+      responses:
+        "200":
+          description: List of workspaces
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Workspace"
+    post:
+      operationId: createWorkspace
+      tags: [workspaces]
+      summary: Create a new workspace
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/WorkspaceInput"
+      responses:
+        "201":
+          description: Created workspace
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Workspace"
+
+  /workspaces/{id}:
+    get:
+      operationId: getWorkspace
+      tags: [workspaces]
+      summary: Get a workspace by ID
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Workspace
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Workspace"
+        "404":
+          description: Not found
+    delete:
+      operationId: deleteWorkspace
+      tags: [workspaces]
+      summary: Delete a workspace
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "204":
+          description: Deleted
+
+  # ── Providers ─────────────────────────────────────────────────────────────
+  /providers:
+    get:
+      operationId: listProviders
+      tags: [providers]
+      summary: List all AI providers with health status
+      responses:
+        "200":
+          description: List of providers
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Provider"
+    post:
+      operationId: createProvider
+      tags: [providers]
+      summary: Add a provider configuration
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ProviderInput"
+      responses:
+        "201":
+          description: Created provider
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Provider"
+
+  /providers/{id}:
+    patch:
+      operationId: updateProvider
+      tags: [providers]
+      summary: Update a provider
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ProviderUpdate"
+      responses:
+        "200":
+          description: Updated provider
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Provider"
+    delete:
+      operationId: deleteProvider
+      tags: [providers]
+      summary: Delete a provider
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "204":
+          description: Deleted
+
+  /providers/{id}/test:
+    post:
+      operationId: testProvider
+      tags: [providers]
+      summary: Test a provider connection
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Test result
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ProviderTestResult"
+
+  /providers/active:
+    get:
+      operationId: getActiveProvider
+      tags: [providers]
+      summary: Get the currently active provider
+      responses:
+        "200":
+          description: Active provider
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Provider"
+
+  # ── Agents ────────────────────────────────────────────────────────────────
+  /agents:
+    get:
+      operationId: listAgents
+      tags: [agents]
+      summary: List active agent instances
+      responses:
+        "200":
+          description: List of agent instances
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/AgentInstance"
+    post:
+      operationId: spawnAgent
+      tags: [agents]
+      summary: Spawn a new agent instance
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AgentSpawnInput"
+      responses:
+        "201":
+          description: Spawned agent
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AgentInstance"
+
+  /agents/{id}:
+    get:
+      operationId: getAgent
+      tags: [agents]
+      summary: Get an agent instance
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Agent instance
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AgentInstance"
+
+  /agents/{id}/stop:
+    post:
+      operationId: stopAgent
+      tags: [agents]
+      summary: Stop an agent instance
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Stopped agent
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AgentInstance"
+
+  # ── Sandbox ───────────────────────────────────────────────────────────────
+  /sandbox/execute:
+    post:
+      operationId: executeSandbox
+      tags: [sandbox]
+      summary: Execute code in E2B sandbox
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SandboxExecuteInput"
+      responses:
+        "200":
+          description: Execution result
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SandboxResult"
+
+  /sandbox/executions:
+    get:
+      operationId: listSandboxExecutions
+      tags: [sandbox]
+      summary: List recent sandbox executions
+      responses:
+        "200":
+          description: List of executions
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/SandboxResult"
+
+  # ── Events ────────────────────────────────────────────────────────────────
+  /events:
+    get:
+      operationId: listEvents
+      tags: [events]
+      summary: List recent platform events
+      parameters:
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 50
+      responses:
+        "200":
+          description: List of events
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Event"
+
+  # ── Dashboard ─────────────────────────────────────────────────────────────
+  /dashboard/summary:
+    get:
+      operationId: getDashboardSummary
+      tags: [dashboard]
+      summary: Get platform overview stats
+      responses:
+        "200":
+          description: Dashboard summary
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DashboardSummary"
+
 components:
   schemas:
     HealthStatus:
       type: object
+      required: [status]
       properties:
         status:
           type: string
-      required:
-        - status
 
+    # ── Session schemas ──────────────────────────────────────────────────────
+    Session:
+      type: object
+      required: [id, title, mode, messageCount, createdAt, updatedAt]
+      properties:
+        id:
+          type: integer
+        title:
+          type: string
+        mode:
+          type: string
+          enum: [chat, plan, agent]
+        providerId:
+          type: ["integer", "null"]
+        model:
+          type: ["string", "null"]
+        messageCount:
+          type: integer
+        pinned:
+          type: boolean
+        createdAt:
+          type: string
+        updatedAt:
+          type: string
+
+    SessionInput:
+      type: object
+      required: [title]
+      properties:
+        title:
+          type: string
+          minLength: 1
+        mode:
+          type: string
+          enum: [chat, plan, agent]
+        providerId:
+          type: ["integer", "null"]
+        model:
+          type: ["string", "null"]
+
+    SessionUpdate:
+      type: object
+      properties:
+        title:
+          type: string
+          minLength: 1
+        mode:
+          type: string
+          enum: [chat, plan, agent]
+        providerId:
+          type: ["integer", "null"]
+        model:
+          type: ["string", "null"]
+        pinned:
+          type: boolean
+
+    SessionExport:
+      type: object
+      required: [sessionId, title, content, exportedAt]
+      properties:
+        sessionId:
+          type: integer
+        title:
+          type: string
+        content:
+          type: string
+        exportedAt:
+          type: string
+
+    # ── Message schemas ──────────────────────────────────────────────────────
+    Message:
+      type: object
+      required: [id, sessionId, role, content, createdAt]
+      properties:
+        id:
+          type: integer
+        sessionId:
+          type: integer
+        role:
+          type: string
+          enum: [user, assistant, system, tool]
+        content:
+          type: string
+        agentType:
+          type: ["string", "null"]
+        model:
+          type: ["string", "null"]
+        tokensUsed:
+          type: ["integer", "null"]
+        createdAt:
+          type: string
+
+    MessageInput:
+      type: object
+      required: [content]
+      properties:
+        content:
+          type: string
+          minLength: 1
+        model:
+          type: ["string", "null"]
+        providerId:
+          type: ["integer", "null"]
+
+    # ── Plan schemas ─────────────────────────────────────────────────────────
+    Plan:
+      type: object
+      required: [id, title, status, totalSteps, completedSteps, createdAt, updatedAt]
+      properties:
+        id:
+          type: integer
+        title:
+          type: string
+        description:
+          type: ["string", "null"]
+        status:
+          type: string
+          enum: [draft, active, executing, completed, failed, paused]
+        totalSteps:
+          type: integer
+        completedSteps:
+          type: integer
+        sessionId:
+          type: ["integer", "null"]
+        workspaceId:
+          type: ["integer", "null"]
+        version:
+          type: integer
+        createdAt:
+          type: string
+        updatedAt:
+          type: string
+
+    PlanStep:
+      type: object
+      required: [id, planId, title, order, status, createdAt]
+      properties:
+        id:
+          type: integer
+        planId:
+          type: integer
+        title:
+          type: string
+        description:
+          type: ["string", "null"]
+        order:
+          type: integer
+        status:
+          type: string
+          enum: [pending, running, completed, failed, skipped]
+        agentType:
+          type: ["string", "null"]
+        output:
+          type: ["string", "null"]
+        dependsOn:
+          type: array
+          items:
+            type: integer
+        createdAt:
+          type: string
+        updatedAt:
+          type: ["string", "null"]
+
+    PlanWithSteps:
+      type: object
+      required: [id, title, status, totalSteps, completedSteps, steps, createdAt, updatedAt]
+      properties:
+        id:
+          type: integer
+        title:
+          type: string
+        description:
+          type: ["string", "null"]
+        status:
+          type: string
+          enum: [draft, active, executing, completed, failed, paused]
+        totalSteps:
+          type: integer
+        completedSteps:
+          type: integer
+        sessionId:
+          type: ["integer", "null"]
+        workspaceId:
+          type: ["integer", "null"]
+        version:
+          type: integer
+        steps:
+          type: array
+          items:
+            $ref: "#/components/schemas/PlanStep"
+        createdAt:
+          type: string
+        updatedAt:
+          type: string
+
+    PlanInput:
+      type: object
+      required: [title]
+      properties:
+        title:
+          type: string
+          minLength: 1
+        description:
+          type: string
+        sessionId:
+          type: ["integer", "null"]
+        workspaceId:
+          type: ["integer", "null"]
+        steps:
+          type: array
+          items:
+            type: object
+            required: [title]
+            properties:
+              title:
+                type: string
+              description:
+                type: string
+              order:
+                type: integer
+              agentType:
+                type: string
+              dependsOn:
+                type: array
+                items:
+                  type: integer
+
+    PlanUpdate:
+      type: object
+      properties:
+        title:
+          type: string
+          minLength: 1
+        description:
+          type: ["string", "null"]
+        status:
+          type: string
+          enum: [draft, active, executing, completed, failed, paused]
+
+    PlanStepUpdate:
+      type: object
+      properties:
+        title:
+          type: string
+        description:
+          type: ["string", "null"]
+        status:
+          type: string
+          enum: [pending, running, completed, failed, skipped]
+        output:
+          type: ["string", "null"]
+
+    # ── Task schemas ─────────────────────────────────────────────────────────
+    Task:
+      type: object
+      required: [id, title, agentType, status, priority, retryCount, maxRetries, createdAt, updatedAt]
+      properties:
+        id:
+          type: integer
+        title:
+          type: string
+        description:
+          type: ["string", "null"]
+        agentType:
+          type: string
+          enum: [supervisor, planner, researcher, coder, reviewer]
+        status:
+          type: string
+          enum: [pending, queued, running, paused, completed, failed, cancelled]
+        priority:
+          type: integer
+        retryCount:
+          type: integer
+        maxRetries:
+          type: integer
+        output:
+          type: ["string", "null"]
+        errorMessage:
+          type: ["string", "null"]
+        sessionId:
+          type: ["integer", "null"]
+        planId:
+          type: ["integer", "null"]
+        workspaceId:
+          type: ["integer", "null"]
+        startedAt:
+          type: ["string", "null"]
+        completedAt:
+          type: ["string", "null"]
+        createdAt:
+          type: string
+        updatedAt:
+          type: string
+
+    TaskInput:
+      type: object
+      required: [title, agentType]
+      properties:
+        title:
+          type: string
+          minLength: 1
+        description:
+          type: string
+        agentType:
+          type: string
+          enum: [supervisor, planner, researcher, coder, reviewer]
+        priority:
+          type: integer
+        maxRetries:
+          type: integer
+        sessionId:
+          type: ["integer", "null"]
+        planId:
+          type: ["integer", "null"]
+        workspaceId:
+          type: ["integer", "null"]
+
+    TaskStats:
+      type: object
+      required: [total, pending, queued, running, paused, completed, failed, cancelled]
+      properties:
+        total:
+          type: integer
+        pending:
+          type: integer
+        queued:
+          type: integer
+        running:
+          type: integer
+        paused:
+          type: integer
+        completed:
+          type: integer
+        failed:
+          type: integer
+        cancelled:
+          type: integer
+
+    # ── Artifact schemas ─────────────────────────────────────────────────────
+    Artifact:
+      type: object
+      required: [id, title, artifactType, creatorAgent, version, createdAt]
+      properties:
+        id:
+          type: integer
+        title:
+          type: string
+        artifactType:
+          type: string
+          enum: [markdown, code, json, csv, report, zip, text, other]
+        content:
+          type: ["string", "null"]
+        filePath:
+          type: ["string", "null"]
+        creatorAgent:
+          type: string
+        taskId:
+          type: ["integer", "null"]
+        workspaceId:
+          type: ["integer", "null"]
+        version:
+          type: integer
+        sizeBytes:
+          type: ["integer", "null"]
+        createdAt:
+          type: string
+
+    ArtifactInput:
+      type: object
+      required: [title, artifactType, creatorAgent]
+      properties:
+        title:
+          type: string
+          minLength: 1
+        artifactType:
+          type: string
+          enum: [markdown, code, json, csv, report, zip, text, other]
+        content:
+          type: string
+        filePath:
+          type: ["string", "null"]
+        creatorAgent:
+          type: string
+        taskId:
+          type: ["integer", "null"]
+        workspaceId:
+          type: ["integer", "null"]
+
+    # ── Workspace schemas ────────────────────────────────────────────────────
+    Workspace:
+      type: object
+      required: [id, name, status, artifactCount, taskCount, createdAt, updatedAt]
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+        description:
+          type: ["string", "null"]
+        status:
+          type: string
+          enum: [active, archived, deleted]
+        artifactCount:
+          type: integer
+        taskCount:
+          type: integer
+        createdAt:
+          type: string
+        updatedAt:
+          type: string
+
+    WorkspaceInput:
+      type: object
+      required: [name]
+      properties:
+        name:
+          type: string
+          minLength: 1
+        description:
+          type: string
+
+    # ── Provider schemas ─────────────────────────────────────────────────────
+    Provider:
+      type: object
+      required: [id, name, providerType, isActive, isHealthy, priority, createdAt]
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+        providerType:
+          type: string
+          enum: [gemini, openrouter, groq, openai, anthropic, custom]
+        baseUrl:
+          type: ["string", "null"]
+        defaultModel:
+          type: ["string", "null"]
+        isActive:
+          type: boolean
+        isHealthy:
+          type: boolean
+        priority:
+          type: integer
+        latencyMs:
+          type: ["integer", "null"]
+        lastCheckedAt:
+          type: ["string", "null"]
+        createdAt:
+          type: string
+
+    ProviderInput:
+      type: object
+      required: [name, providerType]
+      properties:
+        name:
+          type: string
+          minLength: 1
+        providerType:
+          type: string
+          enum: [gemini, openrouter, groq, openai, anthropic, custom]
+        baseUrl:
+          type: ["string", "null"]
+        defaultModel:
+          type: ["string", "null"]
+        apiKey:
+          type: ["string", "null"]
+        priority:
+          type: integer
+
+    ProviderUpdate:
+      type: object
+      properties:
+        name:
+          type: string
+        defaultModel:
+          type: ["string", "null"]
+        isActive:
+          type: boolean
+        priority:
+          type: integer
+        apiKey:
+          type: ["string", "null"]
+
+    ProviderTestResult:
+      type: object
+      required: [success, latencyMs]
+      properties:
+        success:
+          type: boolean
+        latencyMs:
+          type: integer
+        model:
+          type: ["string", "null"]
+        error:
+          type: ["string", "null"]
+
+    # ── Agent instance schemas ───────────────────────────────────────────────
+    AgentInstance:
+      type: object
+      required: [id, agentType, status, createdAt]
+      properties:
+        id:
+          type: integer
+        agentType:
+          type: string
+          enum: [supervisor, planner, researcher, coder, reviewer]
+        status:
+          type: string
+          enum: [idle, running, paused, stopped, error]
+        currentTaskId:
+          type: ["integer", "null"]
+        sessionId:
+          type: ["integer", "null"]
+        model:
+          type: ["string", "null"]
+        tokensUsed:
+          type: integer
+        createdAt:
+          type: string
+        updatedAt:
+          type: ["string", "null"]
+
+    AgentSpawnInput:
+      type: object
+      required: [agentType]
+      properties:
+        agentType:
+          type: string
+          enum: [supervisor, planner, researcher, coder, reviewer]
+        sessionId:
+          type: ["integer", "null"]
+        model:
+          type: ["string", "null"]
+
+    # ── Sandbox schemas ──────────────────────────────────────────────────────
+    SandboxExecuteInput:
+      type: object
+      required: [code, language]
+      properties:
+        code:
+          type: string
+          minLength: 1
+        language:
+          type: string
+          enum: [python, javascript, typescript, bash, ruby]
+        taskId:
+          type: ["integer", "null"]
+        timeoutSeconds:
+          type: integer
+
+    SandboxResult:
+      type: object
+      required: [id, language, status, createdAt]
+      properties:
+        id:
+          type: integer
+        language:
+          type: string
+        code:
+          type: string
+        stdout:
+          type: ["string", "null"]
+        stderr:
+          type: ["string", "null"]
+        exitCode:
+          type: ["integer", "null"]
+        status:
+          type: string
+          enum: [running, completed, failed, timeout]
+        executionMs:
+          type: ["integer", "null"]
+        taskId:
+          type: ["integer", "null"]
+        createdAt:
+          type: string
+
+    # ── Event schemas ────────────────────────────────────────────────────────
+    Event:
+      type: object
+      required: [id, eventType, entityType, createdAt]
+      properties:
+        id:
+          type: integer
+        eventType:
+          type: string
+        entityType:
+          type: string
+          enum: [session, message, plan, task, artifact, workspace, agent, sandbox]
+        entityId:
+          type: ["integer", "null"]
+        description:
+          type: string
+        metadata:
+          type: ["string", "null"]
+        createdAt:
+          type: string
+
+    # ── Dashboard schemas ────────────────────────────────────────────────────
+    DashboardSummary:
+      type: object
+      required: [totalSessions, totalPlans, totalTasks, totalArtifacts, totalWorkspaces, activeTasks, completedTasks, failedTasks, recentEvents, providerHealth]
+      properties:
+        totalSessions:
+          type: integer
+        totalPlans:
+          type: integer
+        totalTasks:
+          type: integer
+        totalArtifacts:
+          type: integer
+        totalWorkspaces:
+          type: integer
+        activeTasks:
+          type: integer
+        completedTasks:
+          type: integer
+        failedTasks:
+          type: integer
+        tokensUsedToday:
+          type: integer
+        sandboxExecutionsToday:
+          type: integer
+        recentEvents:
+          type: array
+          items:
+            $ref: "#/components/schemas/Event"
+        providerHealth:
+          type: array
+          items:
+            $ref: "#/components/schemas/Provider"
