@@ -1,51 +1,36 @@
-import express, { type Express } from "express";
-import cors from "cors";
-import pinoHttp from "pino-http";
-import router from "./routes";
-import { logger } from "./lib/logger";
+import express, { type Express, type Request, type Response } from "express";
+import { fileURLToPath } from "node:url";
+import path from "node:path";
+import { logger } from "./lib/logger.js";
+import router from "./routes/index.js";
 
-const app: Express = express();
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
-app.use(
-  pinoHttp({
-    logger,
-    serializers: {
-      req(req) {
-        return {
-          id: req.id,
-          method: req.method,
-          url: req.url?.split("?")[0],
-        };
-      },
-      res(res) {
-        return {
-          statusCode: res.statusCode,
-        };
-      },
-    },
-  }),
-);
-app.use(cors());
-app.use(express.json());
-app.use(express.urlencoded({ extended: true }));
+function createApp(): Express {
+  const app = express();
 
-app.use("/api", router);
+  // JSON body parser
+  app.use(express.json({ limit: "10mb" }));
 
-if (process.env.NODE_ENV === "production") {
-  const path = await import("node:path");
-  const { fileURLToPath } = await import("node:url");
-  const __dirname = path.dirname(fileURLToPath(import.meta.url));
-  
-  // The frontend is built into artifacts/algdevs-ai/dist/public
-  // In the Docker image, we'll place it relative to the server dist
-  const publicPath = path.resolve(__dirname, "../../algdevs-ai/dist/public");
-  
-  app.use(express.static(publicPath));
-  
-  app.get("*", (req, res) => {
-    if (req.path.startsWith("/api")) return;
-    res.sendFile(path.join(publicPath, "index.html"));
-  });
+  // API routes
+  app.use("/api", router);
+
+  // Serve frontend static files in production
+  if (process.env.NODE_ENV === "production") {
+    // In the Docker image, we'll place it relative to the server dist
+    const publicPath = path.resolve(__dirname, "../../algdevs-ai/dist/public");
+    
+    app.use(express.static(publicPath));
+    
+    // Express 5 catch-all route - use /{*splat} syntax
+    app.get("/{*splat}", (req: Request, res: Response) => {
+      if (req.path.startsWith("/api")) return;
+      res.sendFile(path.join(publicPath, "index.html"));
+    });
+  }
+
+  return app;
 }
 
-export default app;
+export default createApp();
