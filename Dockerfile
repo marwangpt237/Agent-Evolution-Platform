@@ -20,7 +20,7 @@ COPY artifacts ./artifacts
 COPY scripts ./scripts
 
 # Install dependencies
-RUN pnpm install --frozen-lockfile
+RUN pnpm config set ignore-scripts false && pnpm install --frozen-lockfile
 
 # Build the project
 # We provide default env vars for the build step to avoid failures
