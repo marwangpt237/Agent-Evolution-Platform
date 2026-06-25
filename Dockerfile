@@ -33,11 +33,10 @@ FROM node:24-slim AS production
 
 WORKDIR /app
 
-# Copy only the necessary files from the base stage
-# For simplicity in this monorepo, we'll copy the built artifacts and node_modules
+# Copy all necessary directories to preserve pnpm symlinks structure
 COPY --from=base /app/node_modules ./node_modules
-COPY --from=base /app/artifacts/api-server/dist ./artifacts/api-server/dist
-COPY --from=base /app/artifacts/algdevs-ai/dist ./artifacts/algdevs-ai/dist
+COPY --from=base /app/lib ./lib
+COPY --from=base /app/artifacts ./artifacts
 COPY --from=base /app/package.json ./package.json
 
 # Set environment variables
