@@ -84,3 +84,5 @@ onlyBuiltDependencies:
 allowBuilds:
   canvas: true
   esbuild: true
+  '@google/genai': true
+  protobufjs: true

@@ -15,5 +15,14 @@
   },
   "dependencies": {
     "pnpm": "^10.34.4"
+  },
+  "pnpm": {
+    "ignoredBuilds": [],
+    "allowBuilds": [
+      "@google/genai",
+      "protobufjs",
+      "canvas",
+      "esbuild"
+    ]
   }
 }
