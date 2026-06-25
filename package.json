@@ -23,7 +23,8 @@
       "msw",
       "unrs-resolver",
       "@google/genai",
-      "protobufjs"
+      "protobufjs",
+      "canvas"
     ]
   }
 }
