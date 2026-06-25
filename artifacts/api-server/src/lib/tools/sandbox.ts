@@ -127,6 +127,13 @@ EOF__AGENT`;
  * Read a file from the sandbox workspace.
  */
 export async function readSandboxFile(sandboxId: string, filePath: string): Promise<string> {
+  const isImage = /\.(png|jpe?g|gif|webp)$/i.test(filePath);
+  if (isImage) {
+    const result = await runSandboxCommand(sandboxId, `base64 -w 0 '${filePath}'`, 30_000);
+    const ext = filePath.split('.').pop()?.toLowerCase();
+    const mime = ext === 'jpg' ? 'jpeg' : ext;
+    return `data:image/${mime};base64,${result.stdout.trim()}`;
+  }
   const result = await runSandboxCommand(sandboxId, `cat '${filePath}'`, 30_000);
   return result.stdout;
 }

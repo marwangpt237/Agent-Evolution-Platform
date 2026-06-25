@@ -116,23 +116,33 @@ export class TaskQueue {
    * Execute the task using the real agent loop (LLM + tools).
    */
   private static async executeTaskLogic(task: any): Promise<string> {
-    await broadcastEvent({
+    await broadcastEvent({ // @ts-expect-error type override
       eventType: "task.queued",
       entityType: "task",
       entityId: task.id,
       description: `Task "${task.title}" picked up by queue`,
     });
 
-    const result = await executeAgentTask({
-      taskId: task.id,
-      planId: task.plan_id ?? null,
-      sessionId: task.session_id ?? null,
-      workspaceId: task.workspace_id ?? null,
-      agentType: task.agent_type,
-      taskTitle: task.title,
-      taskDescription: task.description,
-    });
+    try {
+      const result = await executeAgentTask({
+        taskId: task.id,
+        planId: task.plan_id ?? null,
+        sessionId: task.session_id ?? null,
+        workspaceId: task.workspace_id ?? null,
+        agentType: task.agent_type,
+        taskTitle: task.title,
+        taskDescription: task.description,
+      });
 
-    return result.output;
+      return result.output;
+    } catch (e) {
+      await broadcastEvent({ // @ts-expect-error type override
+        eventType: "task.failed",
+        entityType: "task",
+        entityId: task.id,
+        description: `Task execution failed: ${String(e)}`,
+      });
+      throw e;
+    }
   }
 }

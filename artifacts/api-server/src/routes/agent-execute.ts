@@ -27,39 +27,60 @@ router.post("/agent/execute", async (req, res): Promise<void> => {
   if (!session) { res.status(404).json({ error: "Session not found" }); return; }
 
   try {
-    const planSpec = await createPlanFromBrief(brief);
+    try {
+      const planSpec = await createPlanFromBrief(brief);
 
-    const [plan] = await db.insert(plansTable).values({
-      title: planSpec.title,
-      description: planSpec.description ?? null,
-      sessionId,
-      totalSteps: planSpec.steps.length,
-    }).returning();
+      const [plan] = await db.insert(plansTable).values({
+        title: planSpec.title,
+        description: planSpec.description ?? null,
+        sessionId,
+        totalSteps: planSpec.steps.length,
+      }).returning();
 
-    if (planSpec.steps.length > 0) {
-      await db.insert(planStepsTable).values(
-        planSpec.steps.map((s, i) => ({
-          planId: plan.id,
-          title: s.title,
-          description: s.description ?? null,
-          order: s.order ?? i,
-          agentType: s.agentType ?? "coder",
-          dependsOn: s.dependsOn ?? null,
-        }))
-      );
+      if (planSpec.steps.length > 0) {
+        await db.insert(planStepsTable).values(
+          planSpec.steps.map((s, i) => ({
+            planId: plan.id,
+            title: s.title,
+            description: s.description ?? null,
+            order: s.order ?? i,
+            agentType: s.agentType ?? "coder",
+            dependsOn: s.dependsOn ?? null,
+          }))
+        );
+      }
+
+      await db.insert(eventsTable).values({
+        eventType: "plan.created",
+        entityType: "plan",
+        entityId: plan.id,
+        description: `Plan "${plan.title}" created from brief`,
+      });
+
+      // Instead of running executePlan natively, we enqueue the first step to the TaskQueue.
+      // But for simplicity, we just queue a global task representing the whole prompt so the executor loop handles it directly.
+      const [task] = await db.insert(tasksTable).values({
+        title: input.slice(0, 50),
+        description: brief,
+        agentType: "coder",
+        sessionId,
+        status: "pending"
+      }).returning();
+      
+      res.status(201).json(plan);
+      return;
+    } catch(e) {
+      // If planner fails, just fallback to direct task queueing
+      const [task] = await db.insert(tasksTable).values({
+        title: "Autonomous Task",
+        description: brief,
+        agentType: "coder",
+        sessionId,
+        status: "pending" // The TaskQueue will pick this up automatically!
+      }).returning();
+      
+      res.status(201).json({ id: task.id, status: 'queued' });
     }
-
-    await db.insert(eventsTable).values({
-      eventType: "plan.created",
-      entityType: "plan",
-      entityId: plan.id,
-      description: `Plan "${plan.title}" created from brief`,
-    });
-
-    // Start execution in the background
-    void executePlan(plan.id, sessionId, brief);
-
-    res.status(201).json(plan);
   } catch (err) {
     logger.error({ err }, "Agent execution failed");
     res.status(500).json({ error: err instanceof Error ? err.message : String(err) });

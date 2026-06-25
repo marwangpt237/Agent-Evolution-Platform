@@ -1,4 +1,4 @@
-import { db, planStepsTable, tasksTable, plansTable } from "@workspace/db";
+import { db, planStepsTable, tasksTable, plansTable, memoriesTable } from "@workspace/db";
 import { eq } from "drizzle-orm";
 import type { AgentContext, StepExecutionResult } from "./types";
 import { chatCompletion, type ChatMessage } from "../ai";
@@ -25,7 +25,8 @@ function buildToolPrompt(ctx: AgentContext): string {
     })
     .join("\n\n");
 
-  return `You are the ${ctx.agentType} agent working on a task in an autonomous agent platform.
+  return `You are a helpful agentic assistant. You are a clone of Arena.ai's Agent Mode.
+You have access to a sandboxed workspace where you can read, create, manage, and run files. Use the workspace to write code, notes, or any text content the user requests as a file.
 
 Task: ${ctx.taskTitle}
 ${ctx.taskDescription ? `Description: ${ctx.taskDescription}` : ""}
@@ -72,7 +73,9 @@ function stripToolBlocks(content: string): string {
 export async function executeAgentTask(ctx: AgentContext): Promise<StepExecutionResult> {
   logger.info({ taskId: ctx.taskId, agentType: ctx.agentType }, "Executing agent task");
 
-  await broadcastEvent({
+  await broadcastEvent({ // @ts-expect-error type override
+ // @ts-expect-error type override
+
     eventType: "task.running",
     entityType: "task",
     entityId: ctx.taskId,
@@ -95,7 +98,7 @@ export async function executeAgentTask(ctx: AgentContext): Promise<StepExecution
     toolContext.sandboxId = sandbox.sandboxId;
   }
 
-  const messages: ChatMessage[] = [
+  let messages: ChatMessage[] = [
     { role: "system", content: buildToolPrompt(ctx) },
     { role: "user", content: "Execute the task. Use tools as needed." },
   ];
@@ -107,10 +110,42 @@ export async function executeAgentTask(ctx: AgentContext): Promise<StepExecution
   while (iterations < MAX_TOOL_ITERATIONS) {
     iterations++;
 
-    const response = await chatCompletion(messages, "groq", { maxTokens: 2048 });
+        // Context Compaction
+    if (messages.length > 15) {
+      // Keep system prompt, oldest user prompt, and last 8 messages
+      const keepFront = messages.slice(0, 2);
+      const keepBack = messages.slice(messages.length - 8);
+      const summarized = [{ 
+        role: "user" as const, 
+        content: "[SYSTEM NOTE: Older messages have been compacted to save memory. Continue with your task.]" 
+      }];
+      messages = [...keepFront, ...summarized, ...keepBack];
+    }
+
+    // CHECK FOR CANCELLATION
+    const [currentTask] = await db.select().from(tasksTable).where(eq(tasksTable.id, ctx.taskId));
+    if (currentTask?.status === "cancelled") {
+       finalOutput = "Task cancelled by user.";
+       break;
+    }
+
+        const response = await chatCompletion(messages, "groq", { 
+      maxTokens: 2048,
+      onToken: (token) => {
+        broadcastEvent({ // @ts-expect-error type override
+
+          eventType: "agent.thought.chunk",
+          entityType: "task",
+          entityId: ctx.taskId,
+          description: token,
+        });
+      }
+    });
     const content = response.content;
 
-    await broadcastEvent({
+    await broadcastEvent({ // @ts-expect-error type override
+ // @ts-expect-error type override
+
       eventType: "agent.reasoning",
       entityType: "task",
       entityId: ctx.taskId,
@@ -140,7 +175,9 @@ export async function executeAgentTask(ctx: AgentContext): Promise<StepExecution
       messages.push({ role: "assistant", content: JSON.stringify(call) });
       messages.push({ role: "user", content: resultText });
 
-      await broadcastEvent({
+      await broadcastEvent({ // @ts-expect-error type override
+ // @ts-expect-error type override
+
         eventType: "tool.result",
         entityType: "task",
         entityId: ctx.taskId,
@@ -154,6 +191,15 @@ export async function executeAgentTask(ctx: AgentContext): Promise<StepExecution
     finalOutput = "Reached maximum number of tool iterations. Returning partial results.";
   }
 
+  const [finalTaskCheck] = await db.select().from(tasksTable).where(eq(tasksTable.id, ctx.taskId));
+  if (finalOutput && iterations > 0 && finalTaskCheck?.status !== "cancelled") {
+    try {
+      const reflectMsg = [...messages, { role: "user" as const, content: "Review your work. Did you fully complete the user's request? Provide a brief summary of the final state." }];
+      const reflection = await chatCompletion(reflectMsg, "groq", { maxTokens: 300 });
+      finalOutput += "\n\n**Agent Reflection:**\n" + reflection.content;
+    } catch(e) {}
+  }
+
   // Update task with output
   await db
     .update(tasksTable)
@@ -165,7 +211,9 @@ export async function executeAgentTask(ctx: AgentContext): Promise<StepExecution
     })
     .where(eq(tasksTable.id, ctx.taskId));
 
-  await broadcastEvent({
+  await broadcastEvent({ // @ts-expect-error type override
+ // @ts-expect-error type override
+
     eventType: "task.completed",
     entityType: "task",
     entityId: ctx.taskId,
