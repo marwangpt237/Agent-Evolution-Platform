@@ -59,15 +59,15 @@ router.post("/agent/execute", async (req, res): Promise<void> => {
 
       // Instead of running executePlan natively, we enqueue the first step to the TaskQueue.
       // But for simplicity, we just queue a global task representing the whole prompt so the executor loop handles it directly.
-      const [task] = await db.insert(tasksTable).values({
-        title: input.slice(0, 50),
+const [task] = await db.insert(tasksTable).values({
+        title: brief.slice(0, 50),
         description: brief,
         agentType: "coder",
         sessionId,
         status: "pending"
       }).returning();
       
-      res.status(201).json(plan);
+      res.status(201).json({ id: task.id, status: 'queued' });
       return;
     } catch(e) {
       // If planner fails, just fallback to direct task queueing

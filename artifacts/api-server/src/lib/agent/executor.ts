@@ -1,4 +1,4 @@
-import { db, planStepsTable, tasksTable, plansTable, memoriesTable } from "@workspace/db";
+import { db, planStepsTable, tasksTable, plansTable, memoriesTable, sessionsTable, providersTable } from "@workspace/db";
 import { eq } from "drizzle-orm";
 import type { AgentContext, StepExecutionResult } from "./types";
 import { chatCompletion, type ChatMessage } from "../ai";
@@ -46,18 +46,52 @@ After each tool result, decide if you need another tool or if you are done. When
 
 function parseToolCalls(content: string): ToolCall[] {
   const calls: ToolCall[] = [];
-  const regex = /```json\s*([\s\S]*?)\s*```/g;
-  let match: RegExpExecArray | null;
-
-  while ((match = regex.exec(content)) !== null) {
-    try {
-      const parsed = JSON.parse(match[1]) as ToolCall;
-      if (parsed.tool && parsed.parameters) {
-        calls.push(parsed);
-      }
-    } catch {
-      // ignore malformed JSON blocks
+  
+  // Try extracting directly embedded JSON objects using a loose brace matcher
+  const jsonRegex = /\{\s*"tool"\s*:.*\}/g;
+  const matches = content.match(jsonRegex);
+  
+  if (matches) {
+    for (const match of matches) {
+      try {
+        const parsed = JSON.parse(match) as ToolCall;
+        if (parsed.tool && parsed.parameters) {
+          calls.push(parsed);
+        }
+      } catch (e) {}
     }
+  }
+
+  // If we STILL couldn't extract the tools, let's try a greedy JSON parse across the whole content block
+  if (calls.length === 0) {
+    const fallbackRegex = /\{[\s\S]*?\}/g;
+    let fm;
+    while ((fm = fallbackRegex.exec(content)) !== null) {
+      try {
+        const parsed = JSON.parse(fm[0]) as ToolCall;
+        if (parsed.tool && parsed.parameters) calls.push(parsed);
+      } catch {}
+    }
+  }
+
+  // Fallback to strict markdown block parsing if regex missed
+  if (calls.length === 0) {
+    const blockRegex = /```(?:json)?\s*([\s\S]*?)\s*```/g;
+    let match: RegExpExecArray | null;
+    while ((match = blockRegex.exec(content)) !== null) {
+      try {
+        const parsed = JSON.parse(match[1]) as ToolCall;
+        if (parsed.tool && parsed.parameters) calls.push(parsed);
+      } catch {}
+    }
+  }
+
+  // Absolute fallback: try parsing the whole thing if it's just raw JSON
+  if (calls.length === 0) {
+    try {
+       const parsed = JSON.parse(content) as ToolCall;
+       if (parsed.tool && parsed.parameters) calls.push(parsed);
+    } catch {}
   }
 
   return calls;
@@ -110,9 +144,8 @@ export async function executeAgentTask(ctx: AgentContext): Promise<StepExecution
   while (iterations < MAX_TOOL_ITERATIONS) {
     iterations++;
 
-        // Context Compaction
-    if (messages.length > 15) {
-      // Keep system prompt, oldest user prompt, and last 8 messages
+        // Context Compaction (Only compact for Groq, leave large contexts alone for DeepSeek & Gemini)
+    if (messages.length > 15 && providerType === "groq") {
       const keepFront = messages.slice(0, 2);
       const keepBack = messages.slice(messages.length - 8);
       const summarized = [{ 
@@ -129,7 +162,15 @@ export async function executeAgentTask(ctx: AgentContext): Promise<StepExecution
        break;
     }
 
-        const response = await chatCompletion(messages, "groq", { 
+            // Fetch session provider
+    const [session] = await db.select().from(sessionsTable).where(eq(sessionsTable.id, ctx.sessionId));
+    let providerType = "groq" as any;
+    if (session?.providerId) {
+      const [prov] = await db.select().from(providersTable).where(eq(providersTable.id, session.providerId));
+      if (prov) providerType = prov.providerType;
+    }
+
+    const response = await chatCompletion(messages, providerType, { 
       maxTokens: 2048,
       onToken: (token) => {
         broadcastEvent({ // @ts-expect-error type override
@@ -195,7 +236,14 @@ export async function executeAgentTask(ctx: AgentContext): Promise<StepExecution
   if (finalOutput && iterations > 0 && finalTaskCheck?.status !== "cancelled") {
     try {
       const reflectMsg = [...messages, { role: "user" as const, content: "Review your work. Did you fully complete the user's request? Provide a brief summary of the final state." }];
-      const reflection = await chatCompletion(reflectMsg, "groq", { maxTokens: 300 });
+          // Fetch session provider for reflection
+    const [refSession] = await db.select().from(sessionsTable).where(eq(sessionsTable.id, ctx.sessionId));
+    let refProviderType = "groq" as any;
+    if (refSession?.providerId) {
+      const [prov] = await db.select().from(providersTable).where(eq(providersTable.id, refSession.providerId));
+      if (prov) refProviderType = prov.providerType;
+    }
+    const reflection = await chatCompletion(reflectMsg, refProviderType, { maxTokens: 300 });
       finalOutput += "\n\n**Agent Reflection:**\n" + reflection.content;
     } catch(e) {}
   }

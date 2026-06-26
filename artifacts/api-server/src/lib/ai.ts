@@ -1,5 +1,6 @@
 import Groq from "groq-sdk";
 import { GoogleGenAI } from "@google/genai";
+import Anthropic from "@anthropic-ai/sdk";
 import { logger } from "./logger";
 import { db, providersTable } from "@workspace/db";
 import { eq } from "drizzle-orm";
@@ -27,12 +28,14 @@ export interface CompletionResult {
 }
 
 const GROQ_DEFAULT_MODEL = "openai/gpt-oss-120b"; // High quality free model on Groq
-const OPENROUTER_DEFAULT_MODEL = "google/gemini-2.0-flash-001"; // Fast & capable free model
-const GEMINI_DEFAULT_MODEL = "gemini-3.5-flash";
+const OPENROUTER_DEFAULT_MODEL = "google/gemini-flash-1.5"; // Fast & capable free model
+const GEMINI_DEFAULT_MODEL = "gemini-2.5-flash";
 
 // Gemini uses an OpenAI-compatible endpoint
 const GEMINI_BASE_URL = "https://generativelanguage.googleapis.com/v1beta/openai";
 const OPENROUTER_BASE_URL = "https://openrouter.ai/api/v1";
+const OPENMODEL_BASE_URL = "https://api.deepseek.com/v1";
+const DEEPSEEK_DEFAULT_MODEL = "deepseek-chat";
 
 async function callGroq(messages: ChatMessage[], opts: CompletionOptions, providedKey?: string): Promise<CompletionResult> {
   const model = opts.model ?? GROQ_DEFAULT_MODEL;
@@ -127,6 +130,64 @@ async function callOpenAICompatible(
   };
 }
 
+
+async function callAnthropicCompatible(
+  baseUrl: string,
+  apiKey: string,
+  model: string,
+  messages: ChatMessage[],
+  opts: CompletionOptions
+): Promise<CompletionResult> {
+  const anthropic = new Anthropic({ apiKey, baseURL: baseUrl });
+  
+  // Anthropic strictly separates System prompts from regular messages
+  const systemMessage = messages.find(m => m.role === "system")?.content || undefined;
+  const conversation = messages
+    .filter(m => m.role !== "system")
+    .map(m => ({
+      role: m.role === "assistant" ? "assistant" as const : "user" as const,
+      content: m.content
+    }));
+
+  if (opts.onToken) {
+    const stream = await anthropic.messages.create({
+      model,
+      system: systemMessage,
+      messages: conversation,
+      max_tokens: opts.maxTokens ?? 4096,
+      temperature: opts.temperature ?? 0.7,
+      stream: true,
+    });
+    
+    let fullContent = "";
+    for await (const chunk of stream) {
+      if (chunk.type === 'content_block_delta' && chunk.delta.type === 'text_delta') {
+        const text = chunk.delta.text;
+        fullContent += text;
+        if (text) opts.onToken(text);
+      }
+    }
+    return { content: fullContent, model, tokensUsed: 0 };
+  }
+
+  const response = await anthropic.messages.create({
+    model,
+    system: systemMessage,
+    messages: conversation,
+    max_tokens: opts.maxTokens ?? 4096,
+    temperature: opts.temperature ?? 0.7,
+  });
+
+  // Extract text block content
+  const textContent = response.content.find(c => c.type === 'text');
+  
+  return {
+    content: textContent?.type === 'text' ? textContent.text : "",
+    model,
+    tokensUsed: (response.usage.input_tokens || 0) + (response.usage.output_tokens || 0)
+  };
+}
+
 export async function chatCompletion(
   messages: ChatMessage[],
   providerType: ProviderType = "groq",
@@ -137,6 +198,18 @@ export async function chatCompletion(
     const providers = await db.select().from(providersTable).where(eq(providersTable.providerType, providerType));
     const activeProvider = providers.find(p => p.isActive) || providers[0];
     const dbApiKey = activeProvider?.apiKey || undefined;
+
+
+    if (providerType === "anthropic" || providerType === "custom") {
+      const apiKey = dbApiKey || process.env.OPENMODEL_API_KEY || process.env.DEEPSEEK_API_KEY;
+      if (!apiKey) throw new Error("API_KEY not configured in DB or ENV");
+      
+      return await callOpenAICompatible(
+        "https://api.deepseek.com/v1", apiKey,
+        opts.model || activeProvider?.defaultModel || "deepseek-chat",
+        messages, opts
+      );
+    }
 
     if (providerType === "gemini") {
       const apiKey = dbApiKey || process.env.GEMINI_API_KEY;

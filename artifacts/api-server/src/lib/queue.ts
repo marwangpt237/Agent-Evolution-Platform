@@ -68,6 +68,9 @@ export class TaskQueue {
         this.isProcessing = false;
         return;
       }
+      
+      console.log('TASK PICKED UP: ', task.id);
+      logger.info({ taskId: task.id, agentType: task.agent_type }, "Processing task");
 
       logger.info({ taskId: task.id, agentType: task.agent_type }, "Processing task");
 

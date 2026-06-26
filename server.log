@@ -1,0 +1,82 @@
+
+> @workspace/api-server@0.0.0 start /home/user/Agent-Evolution-Platform/artifacts/api-server
+> node --enable-source-maps ./dist/index.mjs
+
+(node:1514) Warning: SECURITY WARNING: The SSL modes 'prefer', 'require', and 'verify-ca' are treated as aliases for 'verify-full'.
+In the next major version (pg-connection-string v3.0.0 and pg v9.0.0), these modes will adopt standard libpq semantics, which have weaker security guarantees.
+
+To prepare for this change:
+- If you want the current behavior, explicitly use 'sslmode=verify-full'
+- If you want libpq compatibility now, use 'uselibpqcompat=true&sslmode=require'
+
+See https://www.postgresql.org/docs/current/libpq-ssl.html for libpq SSL mode definitions.
+(Use `node --trace-warnings ...` to show where the warning was created)
+[08:11:10.671] [32mINFO[39m (1514): [36mServer listening[39m
+    [35mport[39m: 5000
+[08:11:10.671] [32mINFO[39m (1514): [36mStarting task processor loop[39m
+    [35mintervalMs[39m: 5000
+[08:11:11.012] [32mINFO[39m (1514): [36mRunning startup provider health checks[39m
+    [35mcount[39m: 3
+[08:11:11.039] [33mWARN[39m (1514): [36mPrimary provider failed, attempting fallback chain[39m
+    [35mproviderType[39m: "anthropic"
+    err: {
+      "type": "Error",
+      "message": "API_KEY not configured in DB or ENV",
+      "stack":
+          Error: API_KEY not configured in DB or ENV
+              at chatCompletion (/home/user/Agent-Evolution-Platform/artifacts/api-server/src/lib/ai.ts:205:26)
+              at process.processTicksAndRejections (node:internal/process/task_queues:95:5)
+              at async testProviderHealth (/home/user/Agent-Evolution-Platform/artifacts/api-server/src/lib/ai.ts:301:20)
+              at async <anonymous> (/home/user/Agent-Evolution-Platform/artifacts/api-server/src/index.ts:61:24)
+              at async Promise.allSettled (index 0)
+              at async runStartupHealthChecks (/home/user/Agent-Evolution-Platform/artifacts/api-server/src/index.ts:59:5)
+    }
+[08:11:11.574] [33mWARN[39m (1514): [36mGemini fallback failed[39m
+    err: {
+      "type": "ApiError",
+      "message": "{\"error\":{\"code\":401,\"message\":\"Request had invalid authentication credentials. Expected OAuth 2 access token, login cookie or other valid authentication credential. See https://developers.google.com/identity/sign-in/web/devconsole-project.\",\"status\":\"UNAUTHENTICATED\",\"details\":[{\"@type\":\"type.googleapis.com/google.rpc.ErrorInfo\",\"reason\":\"ACCESS_TOKEN_TYPE_UNSUPPORTED\",\"metadata\":{\"method\":\"google.ai.generativelanguage.v1beta.GenerativeService.GenerateContent\",\"service\":\"generativelanguage.googleapis.com\"}}]}}",
+      "stack":
+          ApiError: {"error":{"code":401,"message":"Request had invalid authentication credentials. Expected OAuth 2 access token, login cookie or other valid authentication credential. See https://developers.google.com/identity/sign-in/web/devconsole-project.","status":"UNAUTHENTICATED","details":[{"@type":"type.googleapis.com/google.rpc.ErrorInfo","reason":"ACCESS_TOKEN_TYPE_UNSUPPORTED","metadata":{"method":"google.ai.generativelanguage.v1beta.GenerativeService.GenerateContent","service":"generativelanguage.googleapis.com"}}]}}
+              at throwErrorIfNotOK (/home/user/Agent-Evolution-Platform/node_modules/.pnpm/@google+genai@2.10.0/node_modules/@google/genai/src/_api_client.ts:982:24)
+              at process.processTicksAndRejections (node:internal/process/task_queues:95:5)
+              at async <anonymous> (/home/user/Agent-Evolution-Platform/node_modules/.pnpm/@google+genai@2.10.0/node_modules/@google/genai/src/_api_client.ts:587:9)
+              at async Models.Models.generateContent (/home/user/Agent-Evolution-Platform/node_modules/.pnpm/@google+genai@2.10.0/node_modules/@google/genai/src/models.ts:128:14)
+              at async chatCompletion (/home/user/Agent-Evolution-Platform/artifacts/api-server/src/lib/ai.ts:271:28)
+              at async testProviderHealth (/home/user/Agent-Evolution-Platform/artifacts/api-server/src/lib/ai.ts:301:20)
+              at async <anonymous> (/home/user/Agent-Evolution-Platform/artifacts/api-server/src/index.ts:61:24)
+              at async Promise.allSettled (index 0)
+              at async runStartupHealthChecks (/home/user/Agent-Evolution-Platform/artifacts/api-server/src/index.ts:59:5)
+      "name": "ApiError",
+      "status": 401
+    }
+[08:11:11.642] [32mINFO[39m (1514): [36mProvider health check complete[39m
+    [35mprovider[39m: "Groq Test"
+    [35mhealthy[39m: true
+    [35mlatencyMs[39m: 537
+[08:11:11.711] [33mWARN[39m (1514): [36mPrimary provider failed, attempting fallback chain[39m
+    [35mproviderType[39m: "gemini"
+    err: {
+      "type": "ApiError",
+      "message": "{\"error\":{\"code\":401,\"message\":\"Request had invalid authentication credentials. Expected OAuth 2 access token, login cookie or other valid authentication credential. See https://developers.google.com/identity/sign-in/web/devconsole-project.\",\"status\":\"UNAUTHENTICATED\",\"details\":[{\"@type\":\"type.googleapis.com/google.rpc.ErrorInfo\",\"reason\":\"ACCESS_TOKEN_TYPE_UNSUPPORTED\",\"metadata\":{\"service\":\"generativelanguage.googleapis.com\",\"method\":\"google.ai.generativelanguage.v1beta.GenerativeService.GenerateContent\"}}]}}",
+      "stack":
+          ApiError: {"error":{"code":401,"message":"Request had invalid authentication credentials. Expected OAuth 2 access token, login cookie or other valid authentication credential. See https://developers.google.com/identity/sign-in/web/devconsole-project.","status":"UNAUTHENTICATED","details":[{"@type":"type.googleapis.com/google.rpc.ErrorInfo","reason":"ACCESS_TOKEN_TYPE_UNSUPPORTED","metadata":{"service":"generativelanguage.googleapis.com","method":"google.ai.generativelanguage.v1beta.GenerativeService.GenerateContent"}}]}}
+              at throwErrorIfNotOK (/home/user/Agent-Evolution-Platform/node_modules/.pnpm/@google+genai@2.10.0/node_modules/@google/genai/src/_api_client.ts:982:24)
+              at process.processTicksAndRejections (node:internal/process/task_queues:95:5)
+              at async <anonymous> (/home/user/Agent-Evolution-Platform/node_modules/.pnpm/@google+genai@2.10.0/node_modules/@google/genai/src/_api_client.ts:587:9)
+              at async Models.Models.generateContent (/home/user/Agent-Evolution-Platform/node_modules/.pnpm/@google+genai@2.10.0/node_modules/@google/genai/src/models.ts:128:14)
+              at async chatCompletion (/home/user/Agent-Evolution-Platform/artifacts/api-server/src/lib/ai.ts:241:24)
+              at async testProviderHealth (/home/user/Agent-Evolution-Platform/artifacts/api-server/src/lib/ai.ts:301:20)
+              at async <anonymous> (/home/user/Agent-Evolution-Platform/artifacts/api-server/src/index.ts:61:24)
+              at async Promise.allSettled (index 1)
+              at async runStartupHealthChecks (/home/user/Agent-Evolution-Platform/artifacts/api-server/src/index.ts:59:5)
+      "name": "ApiError",
+      "status": 401
+    }
+[08:11:11.767] [32mINFO[39m (1514): [36mProvider health check complete[39m
+    [35mprovider[39m: "DeepSeek (Official)"
+    [35mhealthy[39m: true
+    [35mlatencyMs[39m: 729
+[08:11:11.872] [32mINFO[39m (1514): [36mProvider health check complete[39m
+    [35mprovider[39m: "Google Gemini"
+    [35mhealthy[39m: true
+    [35mlatencyMs[39m: 833

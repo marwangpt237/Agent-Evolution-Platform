@@ -17,12 +17,14 @@
     "pnpm": "^10.34.4"
   },
   "pnpm": {
-    "ignoredBuilds": [],
-    "allowBuilds": [
+    "onlyBuiltDependencies": [
       "@google/genai",
       "protobufjs",
       "canvas",
-      "esbuild"
+      "esbuild",
+      "@swc/core",
+      "msw",
+      "unrs-resolver"
     ]
   }
 }

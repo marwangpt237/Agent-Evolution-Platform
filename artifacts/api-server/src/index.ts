@@ -7,7 +7,49 @@ import { TaskQueue } from "./lib/queue";
 
 const port = Number(process.env.PORT || "5000");
 
+async function seedProviders() {
+  try {
+    const existing = await db.select().from(providersTable);
+    const types = existing.map(p => p.providerType);
+    
+    if (!types.includes("groq")) {
+      await db.insert(providersTable).values({
+        name: "Groq (GPT-OSS)",
+        providerType: "groq",
+        defaultModel: "openai/gpt-oss-120b",
+        isActive: true,
+      });
+    } else {
+      await db.update(providersTable).set({ defaultModel: "openai/gpt-oss-120b" }).where(eq(providersTable.providerType, "groq"));
+    }
+    
+    if (!types.includes("gemini")) {
+      await db.insert(providersTable).values({
+        name: "Google Gemini",
+        providerType: "gemini",
+        defaultModel: "gemini-2.5-flash",
+        isActive: true,
+      });
+    }
+    
+    if (!types.includes("anthropic")) {
+      await db.insert(providersTable).values({
+        name: "DeepSeek (Official)",
+        providerType: "anthropic",
+        defaultModel: "deepseek-chat",
+        baseUrl: "https://api.deepseek.com/v1",
+        isActive: true,
+      });
+    } else {
+      await db.update(providersTable).set({ name: "DeepSeek (Official)", defaultModel: "deepseek-chat", baseUrl: "https://api.deepseek.com/v1" }).where(eq(providersTable.providerType, "anthropic"));
+    }
+  } catch (err) {
+    logger.error({ err }, "Failed to seed providers");
+  }
+}
+
 async function runStartupHealthChecks() {
+  await seedProviders();
   try {
     const providers = await db.select().from(providersTable).where(eq(providersTable.isActive, true));
     if (providers.length === 0) return;

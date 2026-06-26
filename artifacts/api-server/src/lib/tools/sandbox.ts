@@ -1,6 +1,7 @@
 import { db, sessionsTable } from "@workspace/db";
 import { eq } from "drizzle-orm";
 import { logger } from "../logger";
+import { Sandbox } from "@e2b/code-interpreter";
 
 const E2B_API_KEY = process.env.E2B_API_KEY;
 const E2B_TEMPLATE_ID = process.env.E2B_TEMPLATE_ID || "base";
@@ -11,143 +12,88 @@ export interface SandboxInfo {
   createdAt: Date;
 }
 
-const activeSandboxes = new Map<number, SandboxInfo>();
 
-/**
- * Ensure a session has a persistent E2B sandbox. If the session already has
- * a sandboxId stored, we attempt to reuse it; otherwise we create one.
- */
-export async function getOrCreateSandbox(sessionId: number): Promise<SandboxInfo> {
-  if (!E2B_API_KEY) {
-    throw new Error("E2B_API_KEY not configured");
-  }
+const activeSandboxes = new Map<number, Sandbox>();
+
+export async function getOrCreateSandbox(sessionId: number) {
+  if (!E2B_API_KEY) throw new Error("E2B_API_KEY not configured");
 
   const cached = activeSandboxes.get(sessionId);
-  if (cached) return cached;
+  if (cached) return { sandboxId: cached.sandboxId, createdAt: new Date() };
 
-  const [session] = await db.select().from(sessionsTable).where(eq(sessionsTable.id, sessionId));
-  if (session?.sandboxId) {
-    const info = { sandboxId: session.sandboxId, createdAt: new Date() };
-    activeSandboxes.set(sessionId, info);
-    return info;
-  }
-
-  logger.info({ sessionId }, "Creating new E2B sandbox");
-
-  const res = await fetch("https://api.e2b.dev/sandboxes", {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      "X-API-Key": E2B_API_KEY,
-    },
-    body: JSON.stringify({
-      templateID: E2B_TEMPLATE_ID,
-      timeout: DEFAULT_TIMEOUT_SECONDS,
-    }),
-  });
-
-  if (!res.ok) {
-    throw new Error(`Failed to create E2B sandbox: ${await res.text()}`);
-  }
-
-  const data = (await res.json()) as { sandboxID: string };
-  const info = { sandboxId: data.sandboxID, createdAt: new Date() };
-
-  await db
-    .update(sessionsTable)
-    .set({ sandboxId: info.sandboxId })
+  logger.info({ sessionId }, "Creating new E2B sandbox via SDK");
+  const sbx = await Sandbox.create({ apiKey: E2B_API_KEY });
+  
+  // Save mapping
+  activeSandboxes.set(sessionId, sbx);
+  
+  // Persist to DB
+  await db.update(sessionsTable)
+    .set({ sandboxId: sbx.sandboxId })
     .where(eq(sessionsTable.id, sessionId));
 
-  activeSandboxes.set(sessionId, info);
-  return info;
+  return { sandboxId: sbx.sandboxId, createdAt: new Date() };
 }
 
-/**
- * Execute a shell command in the session's sandbox.
- */
 export async function runSandboxCommand(
   sandboxId: string,
   command: string,
   timeoutMs = 60_000
-): Promise<{ stdout: string; stderr: string; exitCode: number }> {
-  if (!E2B_API_KEY) {
-    throw new Error("E2B_API_KEY not configured");
+) {
+  let sbx: Sandbox | undefined;
+  for (const s of activeSandboxes.values()) {
+    if (s.sandboxId === sandboxId) { sbx = s; break; }
   }
 
-  const res = await fetch(`https://api.e2b.dev/sandboxes/${sandboxId}/process`, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      "X-API-Key": E2B_API_KEY,
-    },
-    body: JSON.stringify({ cmd: command, timeout: timeoutMs }),
-  });
-
-  if (!res.ok) {
-    throw new Error(`E2B command failed: ${await res.text()}`);
+  if (!sbx) {
+    logger.info({ sandboxId }, "Reconnecting to E2B sandbox");
+    sbx = await Sandbox.connect(sandboxId, { apiKey: process.env.E2B_API_KEY });
+    // Find session to cache it
+    const [session] = await db.select().from(sessionsTable).where(eq(sessionsTable.sandboxId, sandboxId));
+    if (session) activeSandboxes.set(session.id, sbx);
   }
 
-  const data = (await res.json()) as {
-    stdout?: string;
-    stderr?: string;
-    exitCode?: number;
-  };
-
-  return {
-    stdout: data.stdout ?? "",
-    stderr: data.stderr ?? "",
-    exitCode: data.exitCode ?? 0,
-  };
+  const result = await sbx.commands.run(command, { timeoutMs });
+  return { stdout: result.stdout, stderr: result.stderr, exitCode: result.exitCode };
 }
 
-/**
- * Write a file into the sandbox workspace.
- */
-export async function writeSandboxFile(
-  sandboxId: string,
-  filePath: string,
-  content: string
-): Promise<void> {
-  if (!E2B_API_KEY) {
-    throw new Error("E2B_API_KEY not configured");
-  }
-
-  const escaped = content
-    .replace(/\\/g, "\\\\")
-    .replace(/'/g, "\\'");
-
-  const command = `cat > '${filePath}' << 'EOF__AGENT'
-${content}
-EOF__AGENT`;
-
-  await runSandboxCommand(sandboxId, command, 30_000);
-}
-
-/**
- * Read a file from the sandbox workspace.
- */
 export async function readSandboxFile(sandboxId: string, filePath: string): Promise<string> {
+  let sbx: Sandbox | undefined;
+  for (const s of activeSandboxes.values()) {
+    if (s.sandboxId === sandboxId) { sbx = s; break; }
+  }
+  if (!sbx) sbx = await Sandbox.connect(sandboxId, { apiKey: process.env.E2B_API_KEY });
+  
   const isImage = /\.(png|jpe?g|gif|webp)$/i.test(filePath);
   if (isImage) {
-    const result = await runSandboxCommand(sandboxId, `base64 -w 0 '${filePath}'`, 30_000);
     const ext = filePath.split('.').pop()?.toLowerCase();
     const mime = ext === 'jpg' ? 'jpeg' : ext;
-    return `data:image/${mime};base64,${result.stdout.trim()}`;
+    const buf = await sbx.files.read(filePath);
+    const b64 = Buffer.from(buf).toString('base64');
+    return `data:image/${mime};base64,${b64}`;
   }
-  const result = await runSandboxCommand(sandboxId, `cat '${filePath}'`, 30_000);
-  return result.stdout;
+  
+  const content = await sbx.files.read(filePath);
+  return Buffer.from(content).toString('utf8');
 }
 
-/**
- * List files in a sandbox directory.
- */
+export async function writeSandboxFile(sandboxId: string, filePath: string, content: string): Promise<void> {
+  let sbx: Sandbox | undefined;
+  for (const s of activeSandboxes.values()) {
+    if (s.sandboxId === sandboxId) { sbx = s; break; }
+  }
+  if (!sbx) sbx = await Sandbox.connect(sandboxId, { apiKey: process.env.E2B_API_KEY });
+  
+  await sbx.files.write(filePath, content);
+}
+
 export async function listSandboxFiles(
   sandboxId: string,
   dir = "/home/user"
-): Promise<Array<{ path: string; size: number }>> {
+) {
   const result = await runSandboxCommand(
     sandboxId,
-    `find '${dir}' -type f -printf '%s %p\\n' 2>/dev/null || find '${dir}' -type f -exec stat -c '%s %n' {} \\;`,
+    `find '${dir}' -type f -printf '%s %p\n' 2>/dev/null || find '${dir}' -type f -exec stat -c '%s %n' {} \;`,
     30_000
   );
 
@@ -164,18 +110,11 @@ export async function listSandboxFiles(
 }
 
 export async function closeSandbox(sessionId: number): Promise<void> {
-  const info = activeSandboxes.get(sessionId);
-  if (!info || !E2B_API_KEY) return;
-
-  activeSandboxes.delete(sessionId);
-
-  await fetch(`https://api.e2b.dev/sandboxes/${info.sandboxId}`, {
-    method: "DELETE",
-    headers: { "X-API-Key": E2B_API_KEY },
-  }).catch(() => {});
-
-  await db
-    .update(sessionsTable)
-    .set({ sandboxId: null })
-    .where(eq(sessionsTable.id, sessionId));
+  const sbx = activeSandboxes.get(sessionId);
+  if (sbx) {
+    await sbx.kill();
+    activeSandboxes.delete(sessionId);
+    await db.update(sessionsTable).set({ sandboxId: null }).where(eq(sessionsTable.id, sessionId));
+  }
 }
+
